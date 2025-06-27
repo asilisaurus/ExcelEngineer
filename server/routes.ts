@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { ExcelProcessor } from "./services/excel-processor";
+import { ExcelProcessor } from "./services/excel-processor-fixed";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
 import path from 'path';
@@ -11,73 +11,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const excelProcessor = new ExcelProcessor();
 
   // Upload and process Excel file
-  app.post("/api/upload", upload.single('file'), async (req: Request, res: Response) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "Файл не был загружен" });
-      }
-
-      // Create initial record
-      const processedFile = await storage.createProcessedFile({
-        originalName: req.file.originalname,
-        processedName: getOutputFileName(req.file.originalname),
-        status: 'processing',
-        fileSize: req.file.size,
-        rowsProcessed: null,
-        statistics: null,
-        errorMessage: null,
-      });
-
-      // Process file asynchronously
-      setImmediate(async () => {
-        try {
-          const fileBuffer = fs.readFileSync(req.file!.path);
-          const { workbook, statistics } = await excelProcessor.processExcelFile(fileBuffer, req.file!.originalname);
-          
-          // Save processed file
-          const outputPath = path.join(path.dirname(req.file!.path), processedFile.processedName);
-          await workbook.xlsx.writeFile(outputPath);
-
-          // Update record with success
-          await storage.updateProcessedFile(processedFile.id, {
-            status: 'completed',
-            rowsProcessed: statistics.totalRows,
-            statistics: statistics,
-            completedAt: new Date(),
-          });
-
-          // Cleanup original file
-          cleanupFile(req.file!.path);
-        } catch (error) {
-          console.error('Processing error:', error);
-          await storage.updateProcessedFile(processedFile.id, {
-            status: 'error',
-            errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
-            completedAt: new Date(),
-          });
-          
-          // Cleanup original file
-          if (req.file) {
-            cleanupFile(req.file.path);
-          }
+  app.post("/api/upload", (req: Request, res: Response) => {
+    upload.single('file')(req, res, async (err: any) => {
+      try {
+        console.log('Upload request received:', {
+          file: req.file,
+          body: req.body,
+          headers: req.headers['content-type'],
+          error: err
+        });
+        
+        if (err) {
+          console.log('Multer error:', err);
+          return res.status(400).json({ message: err.message || "Ошибка при загрузке файла" });
         }
-      });
+        
+        if (!req.file) {
+          console.log('No file in request');
+          return res.status(400).json({ message: "Файл не был загружен" });
+        }
 
-      res.json({ 
-        message: "Файл загружен и отправлен на обработку",
-        fileId: processedFile.id,
-        file: processedFile
-      });
+        // Create initial record
+        const processedFile = await storage.createProcessedFile({
+          originalName: req.file.originalname,
+          processedName: getOutputFileName(req.file.originalname),
+          status: 'processing',
+          fileSize: req.file.size,
+          rowsProcessed: null,
+          statistics: null,
+          errorMessage: null,
+        });
 
-    } catch (error) {
-      console.error('Upload error:', error);
-      if (req.file) {
-        cleanupFile(req.file.path);
+        // Process file asynchronously
+        setImmediate(async () => {
+          try {
+            const fileBuffer = fs.readFileSync(req.file!.path);
+            const { workbook, statistics } = await excelProcessor.processExcelFile(fileBuffer, req.file!.originalname);
+            
+            // Save processed file
+            const outputPath = path.join(path.dirname(req.file!.path), processedFile.processedName);
+            await workbook.xlsx.writeFile(outputPath);
+
+            // Update record with success
+            await storage.updateProcessedFile(processedFile.id, {
+              status: 'completed',
+              rowsProcessed: statistics.totalRows,
+              statistics: statistics,
+              completedAt: new Date(),
+            });
+
+            // Cleanup original file
+            cleanupFile(req.file!.path);
+          } catch (error) {
+            console.error('Processing error:', error);
+            await storage.updateProcessedFile(processedFile.id, {
+              status: 'error',
+              errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+              completedAt: new Date(),
+            });
+            
+            // Cleanup original file
+            if (req.file) {
+              cleanupFile(req.file.path);
+            }
+          }
+        });
+
+        res.json({ 
+          message: "Файл загружен и отправлен на обработку",
+          fileId: processedFile.id,
+          file: processedFile
+        });
+
+      } catch (error) {
+        console.error('Upload error:', error);
+        if (req.file) {
+          cleanupFile(req.file.path);
+        }
+        res.status(500).json({ 
+          message: error instanceof Error ? error.message : "Ошибка при загрузке файла" 
+        });
       }
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Ошибка при загрузке файла" 
-      });
-    }
+    });
   });
 
   // Get processing status

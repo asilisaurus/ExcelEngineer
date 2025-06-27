@@ -1,13 +1,9 @@
 import * as XLSX from 'xlsx';
-const ExcelJS = require('exceljs');
 import { ProcessingStats } from '@shared/schema';
+import { createRequire } from 'module';
 
-interface ProcessedData {
-  reviews: any[];
-  comments: any[];
-  activeDiscussions: any[];
-  statistics: ProcessingStats;
-}
+const require = createRequire(import.meta.url);
+const ExcelJS = require('exceljs');
 
 interface CleanedRow {
   площадка: string;

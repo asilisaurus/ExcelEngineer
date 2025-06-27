@@ -24,6 +24,9 @@ export class MemStorage implements IStorage {
       id,
       createdAt: new Date(),
       completedAt: null,
+      rowsProcessed: insertFile.rowsProcessed || null,
+      statistics: insertFile.statistics || null,
+      errorMessage: insertFile.errorMessage || null,
     };
     this.files.set(id, file);
     return file;

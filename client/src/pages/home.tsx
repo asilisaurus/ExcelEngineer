@@ -34,7 +34,14 @@ export default function Home() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await apiRequest('POST', '/api/upload', formData);
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Ошибка загрузки файла');
+      }
       return response.json();
     },
     onSuccess: (data: { fileId: number; file: ProcessedFile }) => {
