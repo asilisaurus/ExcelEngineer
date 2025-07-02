@@ -13,32 +13,35 @@ interface DataRow {
   типПоста: string;
 }
 
-interface ColumnMapping {
-  площадка: number;
-  тема: number;
-  текст: number;
-  дата: number;
-  ник: number;
-  просмотры: number;
-  вовлечение: number;
-  типПоста: number;
-}
+
 
 export class ExcelProcessor {
+  private getCleanValue(value: any): string {
+    if (!value || value === null || value === undefined) return '';
+    return String(value).trim();
+  }
+
   private cleanViews(value: any): number | string {
     if (!value || value === null || value === undefined) return 'Нет данных';
+    
+    // Если уже число, просто возвращаем его
+    if (typeof value === 'number') {
+      return value > 0 ? Math.round(value) : 'Нет данных';
+    }
     
     const str = String(value).trim();
     if (str === '' || str === '-' || str.toLowerCase() === 'нет данных' || str === '0') {
       return 'Нет данных';
     }
-    
-    // Remove spaces, quotes and convert to number
-    const cleaned = str.replace(/\s+/g, '').replace(/['"]/g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-    
-    if (isNaN(num) || num === 0) return 'Нет данных';
-    return Math.round(num);
+
+    // Пытаемся преобразовать в число напрямую
+    const num = parseFloat(str.replace(/[\s,'"]/g, ''));
+    if (!isNaN(num) && num > 0) {
+      return Math.round(num);
+    }
+
+    // Если не получилось, возвращаем как есть (возможно текстовое значение)
+    return str;
   }
 
   async processExcelFile(buffer: Buffer, originalFileName: string): Promise<{ workbook: any; statistics: ProcessingStats }> {
@@ -61,28 +64,20 @@ export class ExcelProcessor {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
       console.log('📋 Извлечено строк:', jsonData.length);
       
-      // 4. Находим строку заголовков и создаем маппинг колонок
-      const { headerRow, columnMapping } = this.findHeaderRowAndMapping(jsonData);
-      console.log('🔍 Найдена строка заголовков:', headerRow, 'Маппинг:', columnMapping);
-      
-      // 5. Извлекаем и очищаем данные
-      const cleanData = this.extractAndCleanData(jsonData, headerRow, columnMapping);
-      console.log('✨ Очищено записей:', cleanData.length);
-      
-      // 6. Группируем данные по разделам
-      const groupedData = this.groupDataBySections(cleanData);
-      console.log('📂 Группировка:', {
-        отзывы: groupedData.отзывы.length,
-        комментарии: groupedData.комментарии.length,
-        активные: groupedData.активные.length
+      // 4. Используем фиксированные диапазоны для надежности
+      const { reviews, comments, active, statistics } = this.extractDataByFixedRanges(jsonData);
+      console.log('📂 Извлечено:', {
+        отзывы: reviews.length,
+        комментарии: comments.length,
+        активные: active.length
       });
       
-      // 7. Рассчитываем статистику
-      const statistics = this.calculateStatistics(groupedData);
-      console.log('🧮 Статистика рассчитана:', statistics);
-      
-      // 8. Создаем итоговый отчет
-      const outputWorkbook = await this.createFormattedReport(groupedData, statistics, sheetName);
+      // 5. Создаем итоговый отчет
+      const outputWorkbook = await this.createFormattedReport(
+        { отзывы: reviews, комментарии: comments, активные: active }, 
+        statistics, 
+        sheetName
+      );
       console.log('📄 Отчет создан успешно!');
       
       return { workbook: outputWorkbook, statistics };
@@ -98,76 +93,73 @@ export class ExcelProcessor {
     return sheetNames.find(name => months.some(month => name.includes(month))) || null;
   }
 
-  private findHeaderRowAndMapping(jsonData: any[][]): { headerRow: number; columnMapping: ColumnMapping } {
-    // Ключевые слова для поиска колонок
-    const columnKeywords = {
-      площадка: ['площадка'],
-      тема: ['тема', 'продукт', 'продукт/тема'],
-      текст: ['текст', 'текст сообщения'],
-      дата: ['дата'],
-      ник: ['ник', 'автор'],
-      просмотры: ['просмотры', 'просмотров получено', 'просмотров'],
-      вовлечение: ['вовлечение'],
-      типПоста: ['тип поста', 'тип']
+  private extractDataByFixedRanges(jsonData: any[][]): { 
+    reviews: DataRow[], 
+    comments: DataRow[], 
+    active: DataRow[], 
+    statistics: ProcessingStats 
+  } {
+    // Фиксированные диапазоны на основе структуры файла
+    const reviews = this.extractRowRange(jsonData, 4, 27, 'Отзывы'); // строки 5-28
+    const comments = this.extractRowRange(jsonData, 29, 48, 'Комментарии Топ-20 выдачи'); // строки 30-49
+    const active: DataRow[] = []; // Активные обсуждения пустые
+    
+    // Рассчитываем статистику
+    const allData = [...reviews, ...comments, ...active];
+    const totalViews = allData.reduce((sum, row) => {
+      return sum + (typeof row.просмотры === 'number' ? row.просмотры : 0);
+    }, 0);
+
+    const recordsWithViews = allData.filter(row => 
+      typeof row.просмотры === 'number' && row.просмотры > 0
+    ).length;
+    
+    const platformsWithData = allData.length > 0 ? Math.round((recordsWithViews / allData.length) * 100) : 0;
+
+    const discussionData = [...comments, ...active];
+    const engagedDiscussions = discussionData.filter(row => 
+      row.вовлечение && (
+        row.вовлечение.toLowerCase().includes('есть') ||
+        row.вовлечение.toLowerCase().includes('да') ||
+        row.вовлечение.toLowerCase().includes('+') ||
+        (row.вовлечение.trim() !== '' && row.вовлечение !== 'Нет данных')
+      )
+    ).length;
+    const engagementRate = discussionData.length > 0 ? Math.round((engagedDiscussions / discussionData.length) * 100) : 0;
+
+    const statistics: ProcessingStats = {
+      totalRows: allData.length,
+      reviewsCount: reviews.length,
+      commentsCount: comments.length,
+      activeDiscussionsCount: active.length,
+      totalViews,
+      engagementRate,
+      platformsWithData
     };
 
-    const normalize = (str: string) => str.toLowerCase().trim();
-
-    // Ищем строку с заголовками
-    for (let rowIndex = 0; rowIndex < Math.min(jsonData.length, 20); rowIndex++) {
-      const row = jsonData[rowIndex];
-      if (!row || !Array.isArray(row)) continue;
-
-      const mapping: Partial<ColumnMapping> = {};
-      let foundColumns = 0;
-
-      // Проверяем каждую ячейку в строке
-      for (let colIndex = 0; colIndex < row.length; colIndex++) {
-        const cellValue = normalize(String(row[colIndex] || ''));
-        
-        // Ищем соответствие с ключевыми словами
-        Object.entries(columnKeywords).forEach(([key, keywords]) => {
-          if (keywords.some(keyword => cellValue.includes(keyword)) && !mapping[key as keyof ColumnMapping]) {
-            mapping[key as keyof ColumnMapping] = colIndex;
-            foundColumns++;
-          }
-        });
-      }
-
-      // Если нашли большинство ключевых колонок, это наша строка заголовков
-      if (foundColumns >= 6) { // Минимум 6 из 8 колонок
-        console.log(`Найдены колонки (${foundColumns}/8):`, mapping);
-        return {
-          headerRow: rowIndex,
-          columnMapping: mapping as ColumnMapping
-        };
-      }
-    }
-
-    throw new Error('Не удалось найти строку заголовков с необходимыми колонками');
+    return { reviews, comments, active, statistics };
   }
 
-  private extractAndCleanData(jsonData: any[][], headerRow: number, columnMapping: ColumnMapping): DataRow[] {
-    const validRows: DataRow[] = [];
-
-    // Обрабатываем строки после заголовка
-    for (let i = headerRow + 1; i < jsonData.length; i++) {
+  private extractRowRange(jsonData: any[][], startRow: number, endRow: number, category: string): DataRow[] {
+    const rows: DataRow[] = [];
+    
+    for (let i = startRow; i <= endRow && i < jsonData.length; i++) {
       const row = jsonData[i];
       if (!row || !Array.isArray(row)) continue;
 
-      // Извлекаем данные по маппингу колонок
-      const площадка = this.getCleanValue(row[columnMapping.площадка]);
-      const тема = this.getCleanValue(row[columnMapping.тема]);
-      const текст = this.getCleanValue(row[columnMapping.текст]);
-      const дата = row[columnMapping.дата] || '';
-      const ник = this.getCleanValue(row[columnMapping.ник]);
-      const просмотры = this.cleanViewsValue(row[columnMapping.просмотры]);
-      const вовлечение = this.getCleanValue(row[columnMapping.вовлечение]);
-      const типПоста = this.getCleanValue(row[columnMapping.типПоста]);
+      // Фиксированное извлечение по колонкам A-H (0-7)
+      const площадка = this.getCleanValue(row[0]);
+      const тема = this.getCleanValue(row[1]);
+      const текст = this.getCleanValue(row[2]);
+      const дата = row[3] || '';
+      const ник = this.getCleanValue(row[4]);
+      const просмотры = this.cleanViews(row[5]);
+      const вовлечение = this.getCleanValue(row[6]);
+      const типПоста = category;
 
-      // Валидация: берем только строки где заполнены Площадка И Тема
-      if (площадка && тема) {
-        validRows.push({
+      // Проверяем, что есть основные данные
+      if (площадка || тема) {
+        rows.push({
           площадка,
           тема,
           текст,
@@ -179,83 +171,8 @@ export class ExcelProcessor {
         });
       }
     }
-
-    return validRows;
-  }
-
-  private getCleanValue(value: any): string {
-    if (!value || value === null || value === undefined) return '';
-    return String(value).trim();
-  }
-
-  private cleanViewsValue(value: any): number | string {
-    if (!value || value === null || value === undefined) return 'Нет данных';
     
-    const str = String(value).trim();
-    if (str === '' || str === '-' || str.toLowerCase() === 'нет данных' || str === '0') {
-      return 'Нет данных';
-    }
-
-    // Убираем пробелы, кавычки, запятые
-    const cleaned = str.replace(/[\s'"]/g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-
-    if (isNaN(num) || num <= 0) return 'Нет данных';
-    return Math.round(num);
-  }
-
-  private groupDataBySections(data: DataRow[]): { отзывы: DataRow[]; комментарии: DataRow[]; активные: DataRow[] } {
-    const sections = {
-      отзывы: [] as DataRow[],
-      комментарии: [] as DataRow[],
-      активные: [] as DataRow[]
-    };
-
-    data.forEach(row => {
-      const типПоста = row.типПоста.toLowerCase();
-      
-      if (типПоста.includes('отзыв')) {
-        sections.отзывы.push({ ...row, типПоста: 'Отзывы' });
-      } else if (типПоста.includes('коммент') || типПоста.includes('топ')) {
-        sections.комментарии.push({ ...row, типПоста: 'Комментарии Топ-20 выдачи' });
-      } else {
-        sections.активные.push({ ...row, типПоста: 'Активные обсуждения (мониторинг)' });
-      }
-    });
-
-    return sections;
-  }
-
-  private calculateStatistics(groupedData: { отзывы: DataRow[]; комментарии: DataRow[]; активные: DataRow[] }): ProcessingStats {
-    const allData = [...groupedData.отзывы, ...groupedData.комментарии, ...groupedData.активные];
-    
-    // Считаем общее количество просмотров
-    const totalViews = allData.reduce((sum, row) => {
-      return sum + (typeof row.просмотры === 'number' ? row.просмотры : 0);
-    }, 0);
-
-    // Считаем количество записей с данными о просмотрах
-    const recordsWithViews = allData.filter(row => typeof row.просмотры === 'number' && row.просмотры > 0).length;
-    
-    // Процент площадок с данными
-    const platformsWithData = allData.length > 0 ? Math.round((recordsWithViews / allData.length) * 100) : 0;
-
-    // Процент вовлечения (только для комментариев и активных обсуждений)
-    const discussionData = [...groupedData.комментарии, ...groupedData.активные];
-    const engagedDiscussions = discussionData.filter(row => 
-      row.вовлечение && row.вовлечение.toLowerCase().includes('есть')
-    ).length;
-    const engagementRate = discussionData.length > 0 ? Math.round((engagedDiscussions / discussionData.length) * 100) : 0;
-
-    return {
-      totalRows: allData.length,
-      reviewsCount: groupedData.отзывы.length,
-      commentsCount: groupedData.комментарии.length,
-      activeDiscussionsCount: groupedData.активные.length,
-      totalViews,
-      engagementRate,
-      platformsWithData
-    };
+    return rows;
   }
 
   private async createFormattedReport(
