@@ -99,13 +99,17 @@ export class ExcelProcessor {
     active: DataRow[], 
     statistics: ProcessingStats 
   } {
-    // Фиксированные диапазоны на основе структуры файла
-    const reviews = this.extractRowRange(jsonData, 4, 27, 'Отзывы'); // строки 5-28
-    const comments = this.extractRowRange(jsonData, 29, 48, 'Комментарии Топ-20 выдачи'); // строки 30-49
-    const active: DataRow[] = []; // Активные обсуждения пустые
+    // Ищем все данные динамически после заголовков
+    const allData = this.extractAllDataFromFile(jsonData);
+    
+    // Группируем по уже определенным типам
+    const reviews = allData.filter(row => row.типПоста === 'Отзывы');
+    const comments = allData.filter(row => row.типПоста === 'Комментарии Топ-20 выдачи');
+    const active = allData.filter(row => row.типПоста === 'Активные обсуждения (мониторинг)');
+
+    console.log(`📊 Распределение данных: Отзывы=${reviews.length}, Комментарии=${comments.length}, Активные=${active.length}, Всего=${allData.length}`);
     
     // Рассчитываем статистику
-    const allData = [...reviews, ...comments, ...active];
     const totalViews = allData.reduce((sum, row) => {
       return sum + (typeof row.просмотры === 'number' ? row.просмотры : 0);
     }, 0);
@@ -140,39 +144,104 @@ export class ExcelProcessor {
     return { reviews, comments, active, statistics };
   }
 
-  private extractRowRange(jsonData: any[][], startRow: number, endRow: number, category: string): DataRow[] {
-    const rows: DataRow[] = [];
+  private extractAllDataFromFile(jsonData: any[][]): DataRow[] {
+    const allData: DataRow[] = [];
+    let currentSection = '';
+    let dataStarted = false;
     
-    for (let i = startRow; i <= endRow && i < jsonData.length; i++) {
+    // Ищем данные по всему файлу
+    for (let i = 0; i < jsonData.length; i++) {
       const row = jsonData[i];
       if (!row || !Array.isArray(row)) continue;
 
-      // Фиксированное извлечение по колонкам A-H (0-7)
+      // Проверяем, не является ли это заголовком секции
+      const rowText = this.getCleanValue(row[0]).toLowerCase();
+      if (rowText.includes('отзывы') && !rowText.includes('карточек')) {
+        currentSection = 'Отзывы';
+        dataStarted = true;
+        continue;
+      } else if (rowText.includes('комментарии') && rowText.includes('топ')) {
+        currentSection = 'Комментарии Топ-20 выдачи';
+        dataStarted = true;
+        continue;
+      } else if (rowText.includes('активные') && rowText.includes('обсуждения')) {
+        currentSection = 'Активные обсуждения (мониторинг)';
+        dataStarted = true;
+        continue;
+      }
+
+      // Пропускаем заголовки и служебные строки
+      if (this.isHeaderRow(row) || this.isSummaryRow(row)) {
+        continue;
+      }
+
+      // Извлекаем данные из строки
       const площадка = this.getCleanValue(row[0]);
       const тема = this.getCleanValue(row[1]);
       const текст = this.getCleanValue(row[2]);
-      const дата = row[3] || '';
-      const ник = this.getCleanValue(row[4]);
-      const просмотры = this.cleanViews(row[5]);
-      const вовлечение = this.getCleanValue(row[6]);
-      const типПоста = category;
 
-      // Проверяем, что есть основные данные
-      if (площадка || тема) {
-        rows.push({
+      // Если нашли строку с данными
+      if ((площадка || тема || текст) && dataStarted) {
+        const дата = row[3] || '';
+        const ник = this.getCleanValue(row[4]);
+        const вовлечение = this.getCleanValue(row[6]);
+        const типПоста = currentSection || this.determinePostType(площадка, тема);
+
+        allData.push({
           площадка,
           тема,
           текст,
           дата,
           ник,
-          просмотры,
+          просмотры: this.cleanViews(row[5]),
           вовлечение,
           типПоста
         });
       }
     }
     
-    return rows;
+    console.log(`📋 Извлечено ${allData.length} строк данных из файла`);
+    return allData;
+  }
+
+  private isHeaderRow(row: any[]): boolean {
+    const rowText = row.join('').toLowerCase();
+    return rowText.includes('площадка') || 
+           rowText.includes('тема') || 
+           rowText.includes('просмотры') ||
+           rowText.includes('вовлечение') ||
+           rowText.includes('продукт') ||
+           rowText.includes('период') ||
+           rowText.includes('план');
+  }
+
+  private isSummaryRow(row: any[]): boolean {
+    const rowText = row.join('').toLowerCase();
+    return rowText.includes('суммарное') || 
+           rowText.includes('количество карточек') ||
+           rowText.includes('количество обсуждений') ||
+           rowText.includes('доля обсуждений') ||
+           rowText.includes('без учета') ||
+           rowText.includes('площадки со статистикой') ||
+           rowText.includes('количество прочтений');
+  }
+
+  private determinePostType(площадка: string, тема: string): string {
+    const area = площадка.toLowerCase();
+    const topic = тема.toLowerCase();
+    
+    if (area.includes('otzovik') || area.includes('irecommend') || 
+        area.includes('market.yandex') || area.includes('ozon') ||
+        area.includes('goodapteka') || area.includes('megapteka') ||
+        area.includes('uteka') || topic.includes('отзыв')) {
+      return 'Отзывы';
+    } else if (area.includes('dzen.ru') || area.includes('woman.ru') ||
+               area.includes('forum.baby.ru') || area.includes('vk.com') ||
+               topic.includes('коммент')) {
+      return 'Комментарии Топ-20 выдачи';
+    } else {
+      return 'Активные обсуждения (мониторинг)';
+    }
   }
 
   private async createFormattedReport(
