@@ -2,306 +2,263 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import type { ProcessingStats } from '@shared/schema';
 
-interface CleanedRow {
+interface DataRow {
   площадка: string;
   тема: string;
   текст: string;
-  дата: Date | string;
+  дата: string | Date;
   ник: string;
   просмотры: number | string;
   вовлечение: string;
   типПоста: string;
 }
 
+
+
 export class ExcelProcessor {
+  private getCleanValue(value: any): string {
+    if (!value || value === null || value === undefined) return '';
+    return String(value).trim();
+  }
+
   private cleanViews(value: any): number | string {
     if (!value || value === null || value === undefined) return 'Нет данных';
+    
+    // Если уже число, просто возвращаем его
+    if (typeof value === 'number') {
+      return value > 0 ? Math.round(value) : 'Нет данных';
+    }
     
     const str = String(value).trim();
     if (str === '' || str === '-' || str.toLowerCase() === 'нет данных' || str === '0') {
       return 'Нет данных';
     }
-    
-    // Remove spaces, quotes and convert to number
-    const cleaned = str.replace(/\s+/g, '').replace(/['"]/g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-    
-    if (isNaN(num) || num === 0) return 'Нет данных';
-    return Math.round(num);
+
+    // Пытаемся преобразовать в число напрямую
+    const num = parseFloat(str.replace(/[\s,'"]/g, ''));
+    if (!isNaN(num) && num > 0) {
+      return Math.round(num);
+    }
+
+    // Если не получилось, возвращаем как есть (возможно текстовое значение)
+    return str;
   }
 
   async processExcelFile(buffer: Buffer, originalFileName: string): Promise<{ workbook: any; statistics: ProcessingStats }> {
-    // Read the file
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    
-    // Find the sheet with month data
-    const months = ['Янв25', 'Фев25', 'Мар25', 'Март25', 'Апр25', 'Май25', 'Июн25', 'Июл25', 'Авг25', 'Сен25', 'Окт25', 'Ноя25', 'Дек25'];
-    
-    const sheetName = workbook.SheetNames.find(name => 
-      months.some(month => name.includes(month))
-    );
-    
-    if (!sheetName) {
-      throw new Error(`Лист с данными месяца не найден. Доступные листы: ${workbook.SheetNames.join(', ')}`);
+    try {
+      console.log('🔄 Начинаем обработку файла...');
+      
+      // 1. Читаем файл
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      console.log('📁 Файл прочитан, листы:', workbook.SheetNames);
+      
+      // 2. Находим лист с данными месяца
+      const sheetName = this.findMonthSheet(workbook.SheetNames);
+      if (!sheetName) {
+        throw new Error(`Лист с данными месяца не найден. Доступные листы: ${workbook.SheetNames.join(', ')}`);
+      }
+      console.log('📊 Найден лист:', sheetName);
+      
+      // 3. Извлекаем данные из листа
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      console.log('📋 Извлечено строк:', jsonData.length);
+      
+      // 4. Используем фиксированные диапазоны для надежности
+      const { reviews, comments, active, statistics } = this.extractDataByFixedRanges(jsonData);
+      console.log('📂 Извлечено:', {
+        отзывы: reviews.length,
+        комментарии: comments.length,
+        активные: active.length
+      });
+      
+      // 5. Создаем итоговый отчет
+      const outputWorkbook = await this.createFormattedReport(
+        { отзывы: reviews, комментарии: comments, активные: active }, 
+        statistics, 
+        sheetName
+      );
+      console.log('📄 Отчет создан успешно!');
+      
+      return { workbook: outputWorkbook, statistics };
+      
+    } catch (error) {
+      console.error('❌ Ошибка обработки файла:', error);
+      throw new Error(`Ошибка обработки файла: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
     }
-
-    console.log(`Processing sheet: ${sheetName}`);
-    
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-    console.log(`Processing file with ${jsonData.length} total rows`);
-
-    // Extract data based on the real structure from source file
-    const { reviews, top20Comments, activeDiscussions, statistics } = this.extractDataFromRealStructure(jsonData);
-
-    console.log(`Processed: Reviews=${reviews.length}, Top20Comments=${top20Comments.length}, ActiveDiscussions=${activeDiscussions.length}`);
-
-    // Create the formatted output workbook
-    const outputWorkbook = await this.createFormattedWorkbook(
-      reviews,
-      top20Comments,
-      activeDiscussions,
-      statistics,
-      sheetName
-    );
-
-    return { workbook: outputWorkbook, statistics };
   }
 
-  private extractDataFromRealStructure(jsonData: any[][]): { 
-    reviews: CleanedRow[], 
-    top20Comments: CleanedRow[], 
-    activeDiscussions: CleanedRow[],
+  private findMonthSheet(sheetNames: string[]): string | null {
+    const months = ['Янв25', 'Фев25', 'Мар25', 'Март25', 'Апр25', 'Май25', 'Июн25', 'Июл25', 'Авг25', 'Сен25', 'Окт25', 'Ноя25', 'Дек25'];
+    return sheetNames.find(name => months.some(month => name.includes(month))) || null;
+  }
+
+  private extractDataByFixedRanges(jsonData: any[][]): { 
+    reviews: DataRow[], 
+    comments: DataRow[], 
+    active: DataRow[], 
     statistics: ProcessingStats 
   } {
-    const reviews: CleanedRow[] = [];
-    const allComments: CleanedRow[] = [];
-
-    let top20SectionFound = false;
-    let commentsStartRow = -1;
-
-    // Process all rows to find structure
-    for (let i = 0; i < jsonData.length; i++) {
-      const row = jsonData[i];
-      if (!row || !Array.isArray(row)) continue;
-
-      const firstCell = String(row[0] || '').trim();
-      
-      // Check for reviews sections
-      if (firstCell.includes('Отзывы (отзовики)') || firstCell.includes('Отзывы (аптеки)')) {
-        const cleanedRow = this.extractRowFromRealStructure(row, 'reviews');
-        if (cleanedRow) {
-          reviews.push(cleanedRow);
-        }
-        continue;
-      }
-
-      // Mark Top-20 section found
-      if (firstCell.includes('ТОП-20 ВЫДАЧИ')) {
-        top20SectionFound = true;
-        continue;
-      }
-
-      // Handle comments sections
-      if (firstCell.includes('Комментарии в обсуждениях')) {
-        if (commentsStartRow === -1) {
-          commentsStartRow = i;
-        }
-        
-        const cleanedRow = this.extractRowFromRealStructure(row, 'comments');
-        if (cleanedRow) {
-          allComments.push(cleanedRow);
-        }
-        continue;
-      }
-
-      // Stop at end markers
-      if (firstCell.includes('Тип размещения') && i > 30) {
-        break;
-      }
-    }
-
-    // Split comments into Top-20 and Active discussions
-    // Based on the expected output, Top-20 should be the first 20 comments after ТОП-20 ВЫДАЧИ
-    const top20Comments = allComments.slice(0, 20);
-    const activeDiscussions = allComments.slice(20);
-
-    // Calculate statistics
-    const allData = [...reviews, ...allComments];
-    const totalViews = this.calculateTotalViews(allData);
+    // Ищем все данные динамически после заголовков
+    const allData = this.extractAllDataFromFile(jsonData);
     
-    // Count engagement - look for "есть" in the engagement column
-    const engagementCount = allComments.filter(row => 
+    // Группируем по уже определенным типам
+    const reviews = allData.filter(row => row.типПоста === 'Отзывы');
+    const comments = allData.filter(row => row.типПоста === 'Комментарии Топ-20 выдачи');
+    const active = allData.filter(row => row.типПоста === 'Активные обсуждения (мониторинг)');
+
+    console.log(`📊 Распределение данных: Отзывы=${reviews.length}, Комментарии=${comments.length}, Активные=${active.length}, Всего=${allData.length}`);
+    
+    // Рассчитываем статистику
+    const totalViews = allData.reduce((sum, row) => {
+      return sum + (typeof row.просмотры === 'number' ? row.просмотры : 0);
+    }, 0);
+
+    const recordsWithViews = allData.filter(row => 
+      typeof row.просмотры === 'number' && row.просмотры > 0
+    ).length;
+    
+    const platformsWithData = allData.length > 0 ? Math.round((recordsWithViews / allData.length) * 100) : 0;
+
+    const discussionData = [...comments, ...active];
+    const engagedDiscussions = discussionData.filter(row => 
       row.вовлечение && (
         row.вовлечение.toLowerCase().includes('есть') ||
         row.вовлечение.toLowerCase().includes('да') ||
-        row.вовлечение.toLowerCase().includes('диалог')
+        row.вовлечение.toLowerCase().includes('+') ||
+        (row.вовлечение.trim() !== '' && row.вовлечение !== 'Нет данных')
       )
     ).length;
-    
-    const engagementRate = allComments.length > 0 ? 
-      Math.round((engagementCount / allComments.length) * 100) : 0;
+    const engagementRate = discussionData.length > 0 ? Math.round((engagedDiscussions / discussionData.length) * 100) : 0;
 
     const statistics: ProcessingStats = {
       totalRows: allData.length,
       reviewsCount: reviews.length,
-      commentsCount: allComments.length,
-      activeDiscussionsCount: activeDiscussions.length,
+      commentsCount: comments.length,
+      activeDiscussionsCount: active.length,
       totalViews,
       engagementRate,
-      platformsWithData: 74, // As shown in requirements
+      platformsWithData
     };
 
-    console.log(`Statistics: Reviews=${reviews.length}, Comments=${allComments.length}, Views=${totalViews}, Engagement=${engagementRate}%`);
-
-    return {
-      reviews,
-      top20Comments,
-      activeDiscussions,
-      statistics
-    };
+    return { reviews, comments, active, statistics };
   }
 
-  private extractRowFromRealStructure(row: any[], sectionType: string): CleanedRow | null {
-    if (!row || !Array.isArray(row)) return null;
-
-    // Based on analysis: B=площадка, C=тема, E=текст, G=дата, H=ник, далее=просмотры
-    const площадка = this.extractPlatformName(String(row[1] || '')); // Column B - extract platform name from URL
-    const тема = String(row[2] || '').trim(); // Column C
-    const текст = String(row[4] || '').trim(); // Column E
-    const дата = this.formatDate(row[6]); // Column G
-    const ник = String(row[7] || '').trim(); // Column H
+  private extractAllDataFromFile(jsonData: any[][]): DataRow[] {
+    const allData: DataRow[] = [];
+    let currentSection = '';
+    let dataStarted = false;
     
-    // Look for views in multiple columns (I, J, K, L, M, etc.)
-    let просмотры: number | string = 'Нет данных';
-    for (let col = 8; col <= 15; col++) {
-      if (row[col] && String(row[col]).trim() !== '') {
-        const viewsValue = this.cleanViews(row[col]);
-        if (typeof viewsValue === 'number') {
-          просмотры = viewsValue;
-          break;
-        }
+    // Ищем данные по всему файлу
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      if (!row || !Array.isArray(row)) continue;
+
+      // Проверяем, не является ли это заголовком секции
+      const rowText = this.getCleanValue(row[0]).toLowerCase();
+      if (rowText.includes('отзывы') && !rowText.includes('карточек')) {
+        currentSection = 'Отзывы';
+        dataStarted = true;
+        continue;
+      } else if (rowText.includes('комментарии') && rowText.includes('топ')) {
+        currentSection = 'Комментарии Топ-20 выдачи';
+        dataStarted = true;
+        continue;
+      } else if (rowText.includes('активные') && rowText.includes('обсуждения')) {
+        currentSection = 'Активные обсуждения (мониторинг)';
+        dataStarted = true;
+        continue;
+      }
+
+      // Пропускаем заголовки и служебные строки
+      if (this.isHeaderRow(row) || this.isSummaryRow(row)) {
+        continue;
+      }
+
+      // Извлекаем данные из строки
+      const площадка = this.getCleanValue(row[0]);
+      const тема = this.getCleanValue(row[1]);
+      const текст = this.getCleanValue(row[2]);
+
+      // Если нашли строку с данными
+      if ((площадка || тема || текст) && dataStarted) {
+        const дата = row[3] || '';
+        const ник = this.getCleanValue(row[4]);
+        const вовлечение = this.getCleanValue(row[6]);
+        const типПоста = currentSection || this.determinePostType(площадка, тема);
+
+        allData.push({
+          площадка,
+          тема,
+          текст,
+          дата,
+          ник,
+          просмотры: this.cleanViews(row[5]),
+          вовлечение,
+          типПоста
+        });
       }
     }
+    
+    console.log(`📋 Извлечено ${allData.length} строк данных из файла`);
+    return allData;
+  }
 
-    // Look for engagement information
-    let вовлечение = 'Нет данных';
-    for (let col = 12; col <= 17; col++) {
-      const cellValue = String(row[col] || '').trim();
-      if (cellValue && cellValue.toLowerCase().includes('есть')) {
-        вовлечение = 'есть';
-        break;
-      }
-    }
+  private isHeaderRow(row: any[]): boolean {
+    const rowText = row.join('').toLowerCase();
+    return rowText.includes('площадка') || 
+           rowText.includes('тема') || 
+           rowText.includes('просмотры') ||
+           rowText.includes('вовлечение') ||
+           rowText.includes('продукт') ||
+           rowText.includes('период') ||
+           rowText.includes('план');
+  }
 
-    // Determine post type
-    let типПоста: string;
-    if (sectionType === 'reviews') {
-      типПоста = 'Отзывы';
+  private isSummaryRow(row: any[]): boolean {
+    const rowText = row.join('').toLowerCase();
+    return rowText.includes('суммарное') || 
+           rowText.includes('количество карточек') ||
+           rowText.includes('количество обсуждений') ||
+           rowText.includes('доля обсуждений') ||
+           rowText.includes('без учета') ||
+           rowText.includes('площадки со статистикой') ||
+           rowText.includes('количество прочтений');
+  }
+
+  private determinePostType(площадка: string, тема: string): string {
+    const area = площадка.toLowerCase();
+    const topic = тема.toLowerCase();
+    
+    if (area.includes('otzovik') || area.includes('irecommend') || 
+        area.includes('market.yandex') || area.includes('ozon') ||
+        area.includes('goodapteka') || area.includes('megapteka') ||
+        area.includes('uteka') || topic.includes('отзыв')) {
+      return 'Отзывы';
+    } else if (area.includes('dzen.ru') || area.includes('woman.ru') ||
+               area.includes('forum.baby.ru') || area.includes('vk.com') ||
+               topic.includes('коммент')) {
+      return 'Комментарии Топ-20 выдачи';
     } else {
-      типПоста = 'Комментарии в обсуждениях';
-    }
-
-    // Only include rows with meaningful data
-    if (площадка || тема || текст) {
-      return {
-        площадка,
-        тема,
-        текст,
-        дата,
-        ник,
-        просмотры,
-        вовлечение,
-        типПоста,
-      };
-    }
-
-    return null;
-  }
-
-  private extractPlatformName(url: string): string {
-    if (!url) return '';
-    
-    // Extract platform name from URL
-    url = url.trim();
-    if (url.includes('otzovik.com')) return 'otzovik.com';
-    if (url.includes('irecommend.ru')) return 'irecommend.ru';
-    if (url.includes('market.yandex.ru')) return 'market.yandex.ru';
-    if (url.includes('dzen.ru')) return 'dzen.ru';
-    if (url.includes('vk.com')) return 'vk.com';
-    if (url.includes('woman.ru')) return 'woman.ru';
-    if (url.includes('dialog.ru')) return 'dialog.ru';
-    if (url.includes('goodapteka.ru')) return 'goodapteka.ru';
-    if (url.includes('megapteka.ru')) return 'megapteka.ru';
-    if (url.includes('uteka.ru')) return 'uteka.ru';
-    if (url.includes('spb.uteka.ru')) return 'spb.uteka.ru';
-    if (url.includes('nfapteka.ru')) return 'nfapteka.ru';
-    if (url.includes('pravog.ru')) return 'pravog.ru';
-    
-    // Extract domain if possible
-    try {
-      const domain = new URL(url).hostname;
-      return domain.replace('www.', '');
-    } catch {
-      return url;
+      return 'Активные обсуждения (мониторинг)';
     }
   }
 
-  private formatDate(dateValue: any): string {
-    if (!dateValue) return '';
-    
-    // Handle Excel date numbers
-    if (typeof dateValue === 'number') {
-      const date = new Date((dateValue - 25569) * 86400 * 1000);
-      return date.toLocaleDateString('ru-RU');
-    }
-    
-    return String(dateValue);
-  }
-
-  private calculateTotalViews(allData: CleanedRow[]): number {
-    return allData.reduce((sum, row) => {
-      if (typeof row.просмотры === 'number' && row.просмотры > 0) {
-        return sum + row.просмотры;
-      }
-      return sum;
-    }, 0);
-  }
-
-  private async createFormattedWorkbook(
-    reviews: CleanedRow[],
-    top20Comments: CleanedRow[],
-    activeDiscussions: CleanedRow[],
+  private async createFormattedReport(
+    groupedData: { отзывы: DataRow[]; комментарии: DataRow[]; активные: DataRow[] },
     statistics: ProcessingStats,
     sheetName: string
   ): Promise<any> {
     const workbook = new ExcelJS.Workbook();
     
-    // Determine month info
-    const monthMap: { [key: string]: { name: string, num: number } } = {
-      "Янв25": { name: "Январь", num: 1 }, 
-      "Фев25": { name: "Февраль", num: 2 }, 
-      "Мар25": { name: "Март", num: 3 }, 
-      "Март25": { name: "Март", num: 3 },
-      "Апр25": { name: "Апрель", num: 4 }, 
-      "Май25": { name: "Май", num: 5 }, 
-      "Июн25": { name: "Июнь", num: 6 }, 
-      "Июл25": { name: "Июль", num: 7 }, 
-      "Авг25": { name: "Август", num: 8 }, 
-      "Сен25": { name: "Сентябрь", num: 9 },
-      "Окт25": { name: "Октябрь", num: 10 }, 
-      "Ноя25": { name: "Ноябрь", num: 11 }, 
-      "Дек25": { name: "Декабрь", num: 12 }
-    };
-    
-    let monthInfo = monthMap[sheetName] || { name: "Месяц", num: 1 };
-    const worksheet = workbook.addWorksheet(`${monthInfo.name} 2025`);
+    // Определяем название месяца
+    const monthName = this.getMonthName(sheetName);
+    const worksheet = workbook.addWorksheet(`${monthName} 2025`);
 
-    // Set column widths to match the sample
+    // Настройка ширины колонок
     worksheet.columns = [
       { width: 25 }, // Площадка
-      { width: 20 }, // Тема 
+      { width: 20 }, // Тема
       { width: 50 }, // Текст сообщения
       { width: 12 }, // Дата
       { width: 15 }, // Ник
@@ -310,30 +267,63 @@ export class ExcelProcessor {
       { width: 12 }, // Тип поста
     ];
 
-    // Create header section (rows 1-3)
+    // Создание шапки отчета
+    this.createReportHeader(worksheet, monthName);
+
+    // Создание заголовков таблицы
+    this.createTableHeaders(worksheet);
+
+    let currentRow = 5;
+
+    // Добавление разделов данных
+    currentRow = this.addDataSection(worksheet, 'Отзывы', groupedData.отзывы, currentRow);
+    currentRow = this.addDataSection(worksheet, 'Комментарии Топ-20 выдачи', groupedData.комментарии, currentRow);
+    currentRow = this.addDataSection(worksheet, 'Активные обсуждения (мониторинг)', groupedData.активные, currentRow);
+
+    // Добавление итоговых показателей
+    this.addSummaryMetrics(worksheet, statistics, currentRow + 2);
+
+    return workbook;
+  }
+
+  private getMonthName(sheetName: string): string {
+    const monthMap: { [key: string]: string } = {
+      'Янв': 'Январь', 'Фев': 'Февраль', 'Мар': 'Март', 'Март': 'Март',
+      'Апр': 'Апрель', 'Май': 'Май', 'Июн': 'Июнь', 'Июл': 'Июль',
+      'Авг': 'Август', 'Сен': 'Сентябрь', 'Окт': 'Октябрь',
+      'Ноя': 'Ноябрь', 'Дек': 'Декабрь'
+    };
+
+    for (const [abbr, full] of Object.entries(monthMap)) {
+      if (sheetName.includes(abbr)) return full;
+    }
+    return 'Месяц';
+  }
+
+  private createReportHeader(worksheet: ExcelJS.Worksheet, monthName: string): void {
     const headerFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2D1341' } };
     const headerFont = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
     const centerAlign = { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true };
-    
-    // Row 1: Product
+
+    // Строка 1: Продукт
     worksheet.mergeCells('A1:B1');
     worksheet.getCell('A1').value = 'Продукт';
     worksheet.mergeCells('C1:H1');
     worksheet.getCell('C1').value = 'Акрихин - Фортедетрим';
-    
-    // Row 2: Period  
+
+    // Строка 2: Период
     worksheet.mergeCells('A2:B2');
     worksheet.getCell('A2').value = 'Период';
     worksheet.mergeCells('C2:H2');
-    worksheet.getCell('C2').value = `${monthInfo.name} 2025`;
-    
-    // Row 3: Plan
+    worksheet.getCell('C2').value = `${monthName} 2025`;
+
+    // Строка 3: План
     worksheet.mergeCells('A3:B3');
     worksheet.getCell('A3').value = 'План';
     worksheet.mergeCells('C3:H3');
     worksheet.getCell('C3').value = 'Отзывы - 22, Комментарии - 650';
 
-    // Apply formatting to header area
+    // Применение форматирования к шапке
     for (let row = 1; row <= 3; row++) {
       for (let col = 1; col <= 8; col++) {
         const cell = worksheet.getCell(row, col);
@@ -342,145 +332,44 @@ export class ExcelProcessor {
         cell.alignment = centerAlign;
       }
     }
+  }
 
-    // Row 4: Column headers
+  private createTableHeaders(worksheet: ExcelJS.Worksheet): void {
     const headers = ['Площадка', 'Тема', 'Текст сообщения', 'Дата', 'Ник', 'Просмотры', 'Вовлечение', 'Тип поста'];
     const headerRow = worksheet.getRow(4);
     headerRow.values = headers;
-    
-    // Format column headers
+
+    const headerFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2D1341' } };
+    const headerFont = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+    const centerAlign = { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true };
+
     headers.forEach((_, index) => {
       const cell = headerRow.getCell(index + 1);
-      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.font = headerFont;
       cell.fill = headerFill;
       cell.alignment = centerAlign;
     });
-
-    let currentRow = 5;
-
-    // Add "Отзывы" section
-    if (reviews.length > 0) {
-      worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
-      const sectionCell = worksheet.getCell(`A${currentRow}`);
-      sectionCell.value = 'Отзывы';
-      sectionCell.font = { name: 'Arial', size: 9, bold: true };
-      sectionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5D9F1' } };
-      sectionCell.alignment = centerAlign;
-      currentRow++;
-
-      currentRow = this.addDataRows(worksheet, reviews, currentRow);
-      currentRow++; // Add gap
-    }
-
-    // Add "Комментарии Топ-20 выдачи" section
-    if (top20Comments.length > 0) {
-      worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
-      const sectionCell = worksheet.getCell(`A${currentRow}`);
-      sectionCell.value = 'Комментарии Топ-20 выдачи';
-      sectionCell.font = { name: 'Arial', size: 9, bold: true };
-      sectionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5D9F1' } };
-      sectionCell.alignment = centerAlign;
-      currentRow++;
-
-      // Update type for top20
-      const top20WithUpdatedType = top20Comments.map(comment => ({
-        ...comment,
-        типПоста: 'Комментарии Топ-20 выдачи'
-      }));
-
-      currentRow = this.addDataRows(worksheet, top20WithUpdatedType, currentRow);
-      currentRow++; // Add gap
-    }
-
-    // Add "Активные обсуждения (мониторинг)" section
-    worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
-    const activeCell = worksheet.getCell(`A${currentRow}`);
-    activeCell.value = 'Активные обсуждения (мониторинг)';
-    activeCell.font = { name: 'Arial', size: 9, bold: true };
-    activeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5D9F1' } };
-    activeCell.alignment = centerAlign;
-    currentRow++;
-
-    if (activeDiscussions.length > 0) {
-      // Update type for active discussions
-      const activeWithUpdatedType = activeDiscussions.map(discussion => ({
-        ...discussion,
-        типПоста: 'Активные обсуждения (мониторинг)'
-      }));
-
-      currentRow = this.addDataRows(worksheet, activeWithUpdatedType, currentRow);
-    }
-    currentRow += 2; // Add gap
-
-    // Add summary statistics
-    const summaryStartRow = currentRow;
-    const summaryFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFCE4D6' } };
-    const summaryFont = { name: 'Arial', size: 9, bold: true };
-    const leftAlign = { horizontal: 'left' as const, vertical: 'top' as const, wrapText: true };
-
-    // Statistics table
-    worksheet.mergeCells(`A${summaryStartRow}:E${summaryStartRow}`);
-    worksheet.getCell(`A${summaryStartRow}`).value = 'Суммарное количество просмотров*';
-    worksheet.getCell(`F${summaryStartRow}`).value = statistics.totalViews;
-    
-    worksheet.mergeCells(`A${summaryStartRow + 1}:E${summaryStartRow + 1}`);
-    worksheet.getCell(`A${summaryStartRow + 1}`).value = 'Количество карточек товара (отзывы)';
-    worksheet.getCell(`F${summaryStartRow + 1}`).value = statistics.reviewsCount;
-    
-    worksheet.mergeCells(`A${summaryStartRow + 2}:E${summaryStartRow + 2}`);
-    worksheet.getCell(`A${summaryStartRow + 2}`).value = 'Количество обсуждений (форумы, сообщества, комментарии к статьям)';
-    worksheet.getCell(`F${summaryStartRow + 2}`).value = statistics.commentsCount;
-    
-    worksheet.mergeCells(`A${summaryStartRow + 3}:E${summaryStartRow + 3}`);
-    worksheet.getCell(`A${summaryStartRow + 3}`).value = 'Доля обсуждений с вовлечением в диалог';
-    worksheet.getCell(`F${summaryStartRow + 3}`).value = `${statistics.engagementRate}%`;
-
-    // Apply formatting to summary section
-    for (let i = 0; i < 4; i++) {
-      const rowNum = summaryStartRow + i;
-      for (let col = 1; col <= 5; col++) {
-        const cell = worksheet.getCell(rowNum, col);
-        cell.fill = summaryFill;
-        cell.font = summaryFont;
-        cell.alignment = leftAlign;
-      }
-      const valueCell = worksheet.getCell(rowNum, 6);
-      valueCell.fill = summaryFill;
-      valueCell.font = summaryFont;
-      valueCell.alignment = centerAlign;
-    }
-
-    // Add footnotes
-    const footnoteRow = summaryStartRow + 6;
-    worksheet.mergeCells(`A${footnoteRow}:F${footnoteRow}`);
-    const footnoteCell = worksheet.getCell(`A${footnoteRow}`);
-    footnoteCell.value = '*Без учета площадок с закрытой статистикой просмотров';
-    footnoteCell.font = { name: 'Arial', size: 8, italic: true };
-
-    const footnote2Row = summaryStartRow + 7;
-    worksheet.mergeCells(`A${footnote2Row}:F${footnote2Row}`);
-    const footnote2Cell = worksheet.getCell(`A${footnote2Row}`);
-    footnote2Cell.value = 'Площадки со статистикой просмотров';
-    footnote2Cell.font = { name: 'Arial', size: 8, bold: true };
-    footnote2Cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-
-    const footnote3Row = summaryStartRow + 8;
-    worksheet.mergeCells(`A${footnote3Row}:F${footnote3Row}`);
-    const footnote3Cell = worksheet.getCell(`A${footnote3Row}`);
-    footnote3Cell.value = 'Количество прочтений увеличивается в среднем на 30% в течение 3 месяцев, следующих за публикацией.';
-    footnote3Cell.font = { name: 'Arial', size: 8 };
-
-    return workbook;
   }
 
-  private addDataRows(worksheet: ExcelJS.Worksheet, data: CleanedRow[], startRow: number): number {
+  private addDataSection(worksheet: ExcelJS.Worksheet, sectionName: string, data: DataRow[], startRow: number): number {
     let currentRow = startRow;
-    
-    for (const row of data) {
+
+    // Добавляем заголовок секции
+    worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
+    const sectionCell = worksheet.getCell(`A${currentRow}`);
+    sectionCell.value = sectionName;
+    sectionCell.font = { name: 'Arial', size: 9, bold: true };
+    sectionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5D9F1' } };
+    sectionCell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+    worksheet.getRow(currentRow).height = 12;
+    currentRow++;
+
+    // Добавляем данные секции
+    data.forEach(row => {
       const dataRow = worksheet.getRow(currentRow);
       dataRow.values = [
         row.площадка,
-        row.тема, 
+        row.тема,
         row.текст,
         row.дата,
         row.ник,
@@ -488,23 +377,94 @@ export class ExcelProcessor {
         row.вовлечение,
         row.типПоста
       ];
-      
-      // Format each cell
+
+      // Форматирование ячеек данных
       dataRow.eachCell((cell: any, colNumber: number) => {
         cell.font = { name: 'Arial', size: 9 };
-        if (colNumber === 4 && cell.value) { // Date column
+        if (colNumber === 4 && cell.value) { // Дата
           cell.numFmt = 'dd.mm.yyyy';
         }
-        if (colNumber === 6) { // Views column
+        if (colNumber === 6) { // Просмотры - центрирование
           cell.alignment = { horizontal: 'center', vertical: 'top', wrapText: true };
         } else {
           cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
         }
       });
-      
+
+      dataRow.height = 12;
       currentRow++;
-    }
-    
-    return currentRow;
+    });
+
+    return currentRow + 1; // Добавляем пробел после секции
+  }
+
+  private addSummaryMetrics(worksheet: ExcelJS.Worksheet, statistics: ProcessingStats, startRow: number): void {
+    const summaryFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFCE4D6' } };
+    const summaryFont = { name: 'Arial', size: 9, bold: true };
+    const leftAlign = { horizontal: 'left' as const, vertical: 'top' as const, wrapText: true };
+    const centerAlign = { horizontal: 'center' as const, vertical: 'center' as const };
+
+    const metrics = [
+      ['Суммарное количество просмотров', statistics.totalViews],
+      ['Количество карточек товара (отзывы)', statistics.reviewsCount],
+      ['Количество обсуждений (форумы, сообщества, комментарии к статьям)', statistics.commentsCount + statistics.activeDiscussionsCount],
+      ['Доля обсуждений с вовлечением в диалог', `${statistics.engagementRate}%`]
+    ];
+
+    metrics.forEach((metric, index) => {
+      const rowNum = startRow + index;
+      
+      // Объединяем ячейки A-E для описания
+      worksheet.mergeCells(`A${rowNum}:E${rowNum}`);
+      worksheet.getCell(`A${rowNum}`).value = metric[0];
+      worksheet.getCell(`F${rowNum}`).value = metric[1];
+
+      // Применяем форматирование
+      for (let col = 1; col <= 5; col++) {
+        const cell = worksheet.getCell(rowNum, col);
+        cell.fill = summaryFill;
+        cell.font = summaryFont;
+        cell.alignment = leftAlign;
+      }
+
+      const valueCell = worksheet.getCell(rowNum, 6);
+      valueCell.fill = summaryFill;
+      valueCell.font = summaryFont;
+      valueCell.alignment = centerAlign;
+
+      // Для процентов - специальное форматирование
+      if (index === 3) {
+        valueCell.value = statistics.engagementRate / 100;
+        valueCell.numFmt = '0%';
+      }
+
+      worksheet.getRow(rowNum).height = 12;
+    });
+
+    // Добавляем сноски
+    const footnoteRow = startRow + 6;
+    worksheet.mergeCells(`A${footnoteRow}:F${footnoteRow}`);
+    const footnoteCell = worksheet.getCell(`A${footnoteRow}`);
+    footnoteCell.value = '*Без учета площадок с закрытой статистикой просмотров';
+    footnoteCell.font = { name: 'Arial', size: 8, italic: true };
+    footnoteCell.alignment = leftAlign;
+    worksheet.getRow(footnoteRow).height = 12;
+
+    const footnote2Row = startRow + 7;
+    worksheet.mergeCells(`A${footnote2Row}:F${footnote2Row}`);
+    const footnote2Cell = worksheet.getCell(`A${footnote2Row}`);
+    footnote2Cell.value = `Площадки со статистикой просмотров                    ${statistics.platformsWithData}%`;
+    footnote2Cell.font = { name: 'Arial', size: 8, bold: true };
+    footnote2Cell.alignment = leftAlign;
+    footnote2Cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+    worksheet.getRow(footnote2Row).height = 12;
+
+    const footnote3Row = startRow + 8;
+    worksheet.mergeCells(`A${footnote3Row}:F${footnote3Row}`);
+    const footnote3Cell = worksheet.getCell(`A${footnote3Row}`);
+    footnote3Cell.value = 'Количество прочтений увеличивается в среднем на 30% в течение 3 месяцев, следующих за публикацией.';
+    footnote3Cell.font = { name: 'Arial', size: 8 };
+    footnote3Cell.alignment = leftAlign;
+    worksheet.getRow(footnote3Row).height = 12;
   }
 }
