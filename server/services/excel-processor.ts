@@ -90,36 +90,28 @@ export class ExcelProcessor {
     const commentsTop20: any[][] = [];
     const activeDiscussions: any[][] = [];
     
-    let currentSection = '';
-    let dataStarted = false;
-    
+    // Process all data rows, ignoring section headers
     for (let i = 0; i < jsonData.length; i++) {
       const row = jsonData[i];
       if (!row || row.length === 0) continue;
       
       const firstCell = String(row[0] || '').toLowerCase().trim();
+      const secondCell = String(row[1] || '').toLowerCase().trim();
       
-      // Detect section headers
-      if (firstCell.includes('отзыв') || firstCell === 'о т з ы в ы') {
-        currentSection = 'reviews';
-        dataStarted = false;
-        continue;
-      } else if (firstCell.includes('комментари') && firstCell.includes('топ')) {
-        currentSection = 'commentsTop20';
-        dataStarted = false;
-        continue;
-      } else if (firstCell.includes('активн') && firstCell.includes('обсужден')) {
-        currentSection = 'activeDiscussions';
-        dataStarted = false;
-        continue;
-      } else if (firstCell.includes('тип размещения') || (row[1] && String(row[1]).toLowerCase().includes('площадка'))) {
-        // This is the header row
-        dataStarted = true;
+      // Skip header rows and section titles
+      if (firstCell.includes('тип размещения') || 
+          firstCell.includes('отзыв') || 
+          firstCell.includes('комментари') || 
+          firstCell.includes('активн') ||
+          secondCell.includes('площадка') ||
+          !row[1] || // Skip empty rows
+          row.length < 10) { // Skip rows with insufficient columns
         continue;
       }
       
-      // Extract data if we're in a section and past the header
-      if (dataStarted && currentSection && row[1]) { // row[1] is площадка column
+      // Extract data from any valid data row
+      // Check if this looks like a data row (has platform name and other data)
+      if (row[1] && String(row[1]).trim() !== '') {
         const extractedRow = [
           row[1] || '',   // Площадка
           row[2] || '',   // Продукт/Тема  
@@ -131,17 +123,13 @@ export class ExcelProcessor {
           row[13] || ''   // Тип поста
         ];
         
-        switch (currentSection) {
-          case 'reviews':
-            reviews.push(extractedRow);
-            break;
-          case 'commentsTop20':
-            commentsTop20.push(extractedRow);
-            break;
-          case 'activeDiscussions':
-            activeDiscussions.push(extractedRow);
-            break;
-        }
+        // Determine section based on content or type
+        const text = String(row[4] || '').toLowerCase();
+        const postType = String(row[13] || '').toLowerCase();
+        
+        // Simple categorization - all data goes to reviews for now
+        // since we want to process ALL data
+        reviews.push(extractedRow);
       }
     }
     

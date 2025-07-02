@@ -16,6 +16,16 @@ interface FileUploadProps {
   error?: string | null;
 }
 
+// helper to fix latin1-encoded UTF-8 strings ("Ð¤..." → "Ф...")
+const decodeFilename = (s: string) => {
+  try {
+    // escape converts to %xx, decodeURIComponent decodes back to utf8
+    return decodeURIComponent(escape(s));
+  } catch {
+    return s;
+  }
+};
+
 export function FileUpload({ 
   onFileUpload, 
   isLoading = false, 
@@ -53,7 +63,7 @@ export function FileUpload({
               <File className="h-8 w-8 text-green-500" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
+              <p className="text-sm font-medium text-gray-900">{decodeFilename(uploadedFile.name)}</p>
               <p className="text-xs text-gray-500">
                 {formatFileSize(uploadedFile.size)} • Загружен {getTimeAgo(uploadedFile.uploadedAt)}
               </p>

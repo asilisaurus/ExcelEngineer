@@ -20,7 +20,9 @@ export function formatNumber(num: number): string {
 }
 
 export function formatDate(date: string | Date): string {
+  if (!date) return 'Нет данных';
   const d = new Date(date);
+  if (isNaN(d.getTime())) return 'Нет данных';
   return d.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',

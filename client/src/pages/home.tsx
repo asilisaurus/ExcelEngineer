@@ -21,11 +21,13 @@ export default function Home() {
   const queryClient = useQueryClient();
 
   // Query for current file status
-  const { data: currentFile, isLoading: fileLoading } = useQuery({
-    queryKey: ['/api/files', currentFileId],
+  const { data: currentFile, isLoading: fileLoading } = useQuery<any>({
+    queryKey: [`/api/files/${currentFileId}`],
     enabled: !!currentFileId,
-    refetchInterval: (data) => {
-      return data?.status === 'processing' ? 2000 : false;
+    // fetch each 2s while processing
+    refetchInterval: (data: any) => {
+      if (!data) return false;
+      return data.status === 'processing' ? 2000 : false;
     },
   });
 
@@ -121,7 +123,11 @@ export default function Home() {
     }
   };
 
-  const progress = currentFile ? getProcessingProgress(currentFile.status, currentFile.rowsProcessed || 0) : 0;
+  const progress = currentFile ? getProcessingProgress(
+    currentFile.status,
+    currentFile.rowsProcessed ?? 0,
+    (currentFile.statistics as any)?.totalRows ?? currentFile.rowsProcessed ?? 0,
+  ) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,7 +253,7 @@ export default function Home() {
                   } : currentFile ? {
                     name: currentFile.originalName,
                     size: currentFile.fileSize,
-                    uploadedAt: currentFile.createdAt
+                    uploadedAt: currentFile.createdAt ? currentFile.createdAt.toString() : new Date().toISOString()
                   } : null}
                   onRemoveFile={handleRemoveFile}
                   error={uploadMutation.error?.message}
@@ -392,8 +398,8 @@ export default function Home() {
           <div className="space-y-6">
             {/* Processing Statistics */}
             <StatisticsPanel
-              statistics={currentFile?.statistics || null}
-              isLoading={fileLoading && currentFile?.status === 'processing'}
+              statistics={currentFile?.statistics as any || null}
+              isLoading={fileLoading && (currentFile as any)?.status === 'processing'}
             />
 
             {/* Quick Actions */}

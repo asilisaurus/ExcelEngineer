@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { ExcelProcessor } from "./services/excel-processor-fixed";
+import { ExcelProcessor } from "./services/excel-processor-improved";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
 import path from 'path';
@@ -31,10 +31,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Файл не был загружен" });
         }
 
+        // Multer (and many browsers) provide non-ASCII filenames in latin1.
+        // Convert to UTF-8 so Cyrillic/Unicode characters display correctly.
+        const originalNameUtf8 = Buffer.from(req.file.originalname, "latin1").toString("utf8");
+
         // Create initial record
         const processedFile = await storage.createProcessedFile({
-          originalName: req.file.originalname,
-          processedName: getOutputFileName(req.file.originalname),
+          originalName: originalNameUtf8,
+          processedName: getOutputFileName(originalNameUtf8),
           status: 'processing',
           fileSize: req.file.size,
           rowsProcessed: null,
