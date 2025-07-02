@@ -78,56 +78,52 @@ export class ExcelProcessor {
     const reviews: CleanedRow[] = [];
     const allComments: CleanedRow[] = [];
 
-    let top20SectionFound = false;
-    let commentsStartRow = -1;
+    console.log(`Analyzing ${jsonData.length} total rows in file`);
 
-    // Process all rows to find structure
+    // Process ALL rows to find ALL data - go through entire file
     for (let i = 0; i < jsonData.length; i++) {
       const row = jsonData[i];
       if (!row || !Array.isArray(row)) continue;
 
       const firstCell = String(row[0] || '').trim();
       
-      // Check for reviews sections
+      // Check for reviews sections - extract ALL review rows
       if (firstCell.includes('Отзывы (отзовики)') || firstCell.includes('Отзывы (аптеки)')) {
         const cleanedRow = this.extractRowFromRealStructure(row, 'reviews');
         if (cleanedRow) {
           reviews.push(cleanedRow);
+          console.log(`Found review at row ${i + 1}: ${cleanedRow.площадка}`);
         }
         continue;
       }
 
-      // Mark Top-20 section found
-      if (firstCell.includes('ТОП-20 ВЫДАЧИ')) {
-        top20SectionFound = true;
-        continue;
-      }
-
-      // Handle comments sections
+      // Handle ALL comments sections - continue until real end of data
       if (firstCell.includes('Комментарии в обсуждениях')) {
-        if (commentsStartRow === -1) {
-          commentsStartRow = i;
-        }
-        
         const cleanedRow = this.extractRowFromRealStructure(row, 'comments');
         if (cleanedRow) {
           allComments.push(cleanedRow);
+          if (allComments.length <= 5 || allComments.length % 100 === 0 || allComments.length % 50 === 0) {
+            console.log(`Found comment ${allComments.length} at row ${i + 1}: ${cleanedRow.площадка}`);
+          }
         }
         continue;
       }
 
-      // Stop at end markers
-      if (firstCell.includes('Тип размещения') && i > 30) {
+      // Stop only when we reach actual non-data sections (like "Актуальные посты")
+      if (firstCell.includes('Актуальные посты') || firstCell.includes('https://dzen.ru/search')) {
+        console.log(`Reached end of data at row ${i + 1}: "${firstCell}", stopping extraction`);
         break;
       }
     }
 
+    console.log(`Extraction complete: Reviews=${reviews.length}, Comments=${allComments.length}`);
+
     // Split comments into Top-20 and Active discussions
-    // Based on the expected output, Top-20 should be the first 20 comments after ТОП-20 ВЫДАЧИ
+    // The first 20 comments go to Top-20, the rest to Active discussions
     const top20Comments = allComments.slice(0, 20);
     const activeDiscussions = allComments.slice(20);
 
-    // Calculate statistics
+    // Calculate statistics with corrected views extraction from columns J, K, L
     const allData = [...reviews, ...allComments];
     const totalViews = this.calculateTotalViews(allData);
     
@@ -153,7 +149,7 @@ export class ExcelProcessor {
       platformsWithData: 74, // As shown in requirements
     };
 
-    console.log(`Statistics: Reviews=${reviews.length}, Comments=${allComments.length}, Views=${totalViews}, Engagement=${engagementRate}%`);
+    console.log(`Final statistics: Reviews=${reviews.length}, Comments=${allComments.length}, Top20=${top20Comments.length}, Active=${activeDiscussions.length}, Views=${totalViews}, Engagement=${engagementRate}%`);
 
     return {
       reviews,
@@ -166,33 +162,30 @@ export class ExcelProcessor {
   private extractRowFromRealStructure(row: any[], sectionType: string): CleanedRow | null {
     if (!row || !Array.isArray(row)) return null;
 
-    // Based on analysis: B=площадка, C=тема, E=текст, G=дата, H=ник, далее=просмотры
+    // Based on analysis: B=площадка, C=тема, E=текст, G=дата, H=ник, J/K/L=просмотры
     const площадка = this.extractPlatformName(String(row[1] || '')); // Column B - extract platform name from URL
     const тема = String(row[2] || '').trim(); // Column C
     const текст = String(row[4] || '').trim(); // Column E
     const дата = this.formatDate(row[6]); // Column G
     const ник = String(row[7] || '').trim(); // Column H
     
-    // Look for views in multiple columns (I, J, K, L, M, etc.)
-    let просмотры: number | string = 'Нет данных';
-    for (let col = 8; col <= 15; col++) {
+    // Extract maximum views from columns J, K, L (9, 10, 11) as discovered in analysis
+    let maxViews = 0;
+    for (let col = 9; col <= 11; col++) {
       if (row[col] && String(row[col]).trim() !== '') {
         const viewsValue = this.cleanViews(row[col]);
-        if (typeof viewsValue === 'number') {
-          просмотры = viewsValue;
-          break;
+        if (typeof viewsValue === 'number' && viewsValue > maxViews) {
+          maxViews = viewsValue;
         }
       }
     }
+    const просмотры = maxViews > 0 ? maxViews : 'Нет данных';
 
-    // Look for engagement information
+    // Look for engagement information in column M (12)
     let вовлечение = 'Нет данных';
-    for (let col = 12; col <= 17; col++) {
-      const cellValue = String(row[col] || '').trim();
-      if (cellValue && cellValue.toLowerCase().includes('есть')) {
-        вовлечение = 'есть';
-        break;
-      }
+    const engagementCell = String(row[12] || '').trim();
+    if (engagementCell && engagementCell.toLowerCase().includes('есть')) {
+      вовлечение = 'есть';
     }
 
     // Determine post type
@@ -203,7 +196,7 @@ export class ExcelProcessor {
       типПоста = 'Комментарии в обсуждениях';
     }
 
-    // Only include rows with meaningful data
+    // Only include rows with meaningful data (platform, theme, or text)
     if (площадка || тема || текст) {
       return {
         площадка,
@@ -223,27 +216,34 @@ export class ExcelProcessor {
   private extractPlatformName(url: string): string {
     if (!url) return '';
     
-    // Extract platform name from URL
-    url = url.trim();
-    if (url.includes('otzovik.com')) return 'otzovik.com';
-    if (url.includes('irecommend.ru')) return 'irecommend.ru';
-    if (url.includes('market.yandex.ru')) return 'market.yandex.ru';
-    if (url.includes('dzen.ru')) return 'dzen.ru';
-    if (url.includes('vk.com')) return 'vk.com';
-    if (url.includes('woman.ru')) return 'woman.ru';
-    if (url.includes('dialog.ru')) return 'dialog.ru';
-    if (url.includes('goodapteka.ru')) return 'goodapteka.ru';
-    if (url.includes('megapteka.ru')) return 'megapteka.ru';
-    if (url.includes('uteka.ru')) return 'uteka.ru';
-    if (url.includes('spb.uteka.ru')) return 'spb.uteka.ru';
-    if (url.includes('nfapteka.ru')) return 'nfapteka.ru';
-    if (url.includes('pravog.ru')) return 'pravog.ru';
+    // Extract platform name from URL - return readable Russian names
+    const url_clean = url.trim().toLowerCase();
+    if (url_clean.includes('otzovik.com')) return 'Отзовик';
+    if (url_clean.includes('irecommend.ru')) return 'Irecommend';
+    if (url_clean.includes('market.yandex.ru')) return 'Яндекс.Маркет';
+    if (url_clean.includes('dzen.ru')) return 'Дзен';
+    if (url_clean.includes('vk.com')) return 'ВКонтакте';
+    if (url_clean.includes('woman.ru')) return 'Woman.ru';
+    if (url_clean.includes('dialog.ru')) return 'Dialog.ru';
+    if (url_clean.includes('goodapteka.ru')) return 'Goodapteka';
+    if (url_clean.includes('megapteka.ru')) return 'Megapteka';
+    if (url_clean.includes('uteka.ru')) return 'Uteka';
+    if (url_clean.includes('spb.uteka.ru')) return 'SPB Uteka';
+    if (url_clean.includes('nfapteka.ru')) return 'NFapteka';
+    if (url_clean.includes('pravog.ru')) return 'Pravoglossa';
+    if (url_clean.includes('medum.ru')) return 'Medum';
+    if (url_clean.includes('vseotzyvy.ru')) return 'Vseotzyvy';
+    if (url_clean.includes('otzyvru.com')) return 'Otzyvru';
+    if (url_clean.includes('youtube.com')) return 'YouTube';
+    if (url_clean.includes('t.me/')) return 'Telegram';
+    if (url_clean.includes('forum.baby.ru')) return 'Baby.ru';
     
     // Extract domain if possible
     try {
       const domain = new URL(url).hostname;
       return domain.replace('www.', '');
     } catch {
+      // If URL parsing fails, return the original string
       return url;
     }
   }
@@ -251,13 +251,26 @@ export class ExcelProcessor {
   private formatDate(dateValue: any): string {
     if (!dateValue) return '';
     
-    // Handle Excel date numbers
-    if (typeof dateValue === 'number') {
+    // Handle Excel date numbers (45719 = 25.03.2025, 45720 = 26.03.2025, etc.)
+    if (typeof dateValue === 'number' && dateValue > 40000) {
+      // Excel date formula: (excel_date - 25569) * 86400 * 1000
       const date = new Date((dateValue - 25569) * 86400 * 1000);
-      return date.toLocaleDateString('ru-RU');
+      
+      // Ensure we get the correct date by adjusting for timezone
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      
+      return `${day}.${month}.${year}`;
     }
     
-    return String(dateValue);
+    // Handle already formatted date strings
+    const dateStr = String(dateValue).trim();
+    if (dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+      return dateStr;
+    }
+    
+    return dateStr;
   }
 
   private calculateTotalViews(allData: CleanedRow[]): number {
