@@ -15,7 +15,10 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-export function formatNumber(num: number): string {
+export function formatNumber(num: number | undefined | null): string {
+  if (num === null || num === undefined || isNaN(num)) {
+    return 'не число';
+  }
   return new Intl.NumberFormat('ru-RU').format(num);
 }
 
@@ -54,7 +57,23 @@ export function getTimeAgo(date: string | Date): string {
 export function getProcessingProgress(status: string, rowsProcessed?: number, totalRows?: number): number {
   switch (status) {
     case 'processing':
-      return rowsProcessed && totalRows ? Math.min((rowsProcessed / totalRows) * 100, 95) : 50;
+      if (rowsProcessed !== undefined) {
+        // Map processing stages to progress percentages
+        switch (rowsProcessed) {
+          case 0:
+            return 10; // Initial stage
+          case 1:
+            return 30; // Reading/downloading
+          case 2:
+            return 70; // Processing
+          case 3:
+            return 90; // Final formatting
+          default:
+            return Math.min((rowsProcessed / (totalRows || 4)) * 100, 95);
+        }
+      }
+      // If no specific progress data, show minimal progress
+      return 25;
     case 'completed':
       return 100;
     case 'error':

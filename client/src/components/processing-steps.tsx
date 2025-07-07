@@ -16,34 +16,59 @@ interface ProcessingStepsProps {
 }
 
 export function ProcessingSteps({ currentStep, error, rowsProcessed }: ProcessingStepsProps) {
+  const isGoogleSheetsImport = !rowsProcessed || rowsProcessed < 10;
+  
+  // Determine step based on rowsProcessed value
+  const getStepStatus = (stepIndex: number): ProcessingStep['status'] => {
+    if (error) return 'error';
+    if (currentStep === 'completed') return 'completed';
+    if (currentStep === 'error') return 'error';
+    
+    if (rowsProcessed === undefined || rowsProcessed === 0) {
+      return stepIndex === 0 ? 'processing' : 'pending';
+    }
+    
+    if (rowsProcessed === 1) {
+      return stepIndex <= 0 ? 'completed' : stepIndex === 1 ? 'processing' : 'pending';
+    }
+    
+    if (rowsProcessed === 2) {
+      return stepIndex <= 1 ? 'completed' : stepIndex === 2 ? 'processing' : 'pending';
+    }
+    
+    if (rowsProcessed === 3) {
+      return stepIndex <= 2 ? 'completed' : stepIndex === 3 ? 'processing' : 'pending';
+    }
+    
+    return stepIndex <= rowsProcessed ? 'completed' : 'pending';
+  };
+  
   const steps: ProcessingStep[] = [
     {
       id: 'upload',
-      title: 'Извлечение данных из листов',
-      description: rowsProcessed ? `Найдено ${rowsProcessed} строк данных` : 'Чтение структуры файла',
-      status: currentStep === 'upload' ? 'processing' : 
-              ['cleaning', 'calculating', 'formatting', 'completed'].includes(currentStep) ? 'completed' : 'pending'
+      title: isGoogleSheetsImport ? 'Загрузка данных из Google Таблиц' : 'Извлечение данных из листов',
+      description: isGoogleSheetsImport 
+        ? 'Подключение к Google Таблицам и загрузка данных'
+        : 'Чтение структуры файла Excel',
+      status: getStepStatus(0)
     },
     {
       id: 'cleaning',
       title: 'Удаление лишних колонок',
       description: 'Удалены: Согласование, Просмотры на старте, Просмотры в конце месяца',
-      status: currentStep === 'cleaning' ? 'processing' :
-              ['calculating', 'formatting', 'completed'].includes(currentStep) ? 'completed' : 'pending'
+      status: getStepStatus(1)
     },
     {
       id: 'calculating',
       title: 'Расчет показателей вовлечения',
       description: 'Применение формулы: (комментарии + лайки + репосты) / просмотры * 100',
-      status: currentStep === 'calculating' ? 'processing' :
-              ['formatting', 'completed'].includes(currentStep) ? 'completed' : 'pending'
+      status: getStepStatus(2)
     },
     {
       id: 'formatting',
       title: 'Форматирование отчета',
       description: 'Создание групп и итоговых показателей',
-      status: currentStep === 'formatting' ? 'processing' :
-              currentStep === 'completed' ? 'completed' : 'pending'
+      status: getStepStatus(3)
     }
   ];
 

@@ -2,14 +2,13 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { ExcelProcessor } from "./services/excel-processor-improved";
+import { simpleProcessor } from "./services/excel-processor-simple";
+import { importFromGoogleSheets, validateGoogleSheetsUrl } from "./services/google-sheets-importer";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
 import path from 'path';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const excelProcessor = new ExcelProcessor();
-
   // Upload and process Excel file
   app.post("/api/upload", (req: Request, res: Response) => {
     upload.single('file')(req, res, async (err: any) => {
@@ -41,36 +40,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processedName: getOutputFileName(originalNameUtf8),
           status: 'processing',
           fileSize: req.file.size,
-          rowsProcessed: null,
+          rowsProcessed: 0,
           statistics: null,
           errorMessage: null,
         });
 
-        // Process file asynchronously
+        // Process file asynchronously with progress tracking
         setImmediate(async () => {
           try {
-            const fileBuffer = fs.readFileSync(req.file!.path);
-            const { workbook, statistics } = await excelProcessor.processExcelFile(fileBuffer, req.file!.originalname);
+            console.log('🔄 Начинаем обработку файла:', req.file!.originalname);
             
-            // Save processed file
-            const outputPath = path.join(path.dirname(req.file!.path), processedFile.processedName);
-            await workbook.xlsx.writeFile(outputPath);
-
-            // Update record with success
+            // Update to show reading stage
+            console.log('📊 PROGRESS: Setting reading stage (30%)');
             await storage.updateProcessedFile(processedFile.id, {
+              status: 'processing',
+              rowsProcessed: 1,
+              statistics: JSON.stringify({ stage: 'reading', message: 'Чтение файла...' }),
+            });
+
+            // Process the file
+            console.log('🔄 PROGRESS: Starting file processing...');
+            const result = await simpleProcessor.processExcelFile(req.file!.path);
+            console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
+
+            // Update to show processing stage
+            console.log('📊 PROGRESS: Setting processing stage (70%)');
+            await storage.updateProcessedFile(processedFile.id, {
+              status: 'processing',
+              rowsProcessed: 2,
+              statistics: JSON.stringify({ stage: 'processing', message: 'Обработка данных...' }),
+            });
+
+            // Simulate final formatting stage
+            console.log('📊 PROGRESS: Final formatting stage...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Update record with success and correct processed filename
+            const actualFileName = path.basename(result.outputPath);
+            console.log('✅ PROGRESS: Setting completed stage (100%), file:', actualFileName);
+            await storage.updateProcessedFile(processedFile.id, {
+              processedName: actualFileName,
               status: 'completed',
-              rowsProcessed: statistics.totalRows,
-              statistics: statistics,
+              rowsProcessed: result.statistics.totalRows,
+              statistics: JSON.stringify(result.statistics),
               completedAt: new Date(),
             });
+
+            console.log('✅ Обработка файла завершена успешно');
 
             // Cleanup original file
             cleanupFile(req.file!.path);
           } catch (error) {
-            console.error('Processing error:', error);
+            console.error('❌ Ошибка при обработке файла:', error);
             await storage.updateProcessedFile(processedFile.id, {
               status: 'error',
-              errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+              errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка при обработке файла',
               completedAt: new Date(),
             });
             
@@ -97,6 +121,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     });
+  });
+
+  // Import from Google Sheets
+  app.post("/api/import-google-sheets", async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL Google Таблиц обязателен" });
+      }
+      
+      if (!validateGoogleSheetsUrl(url)) {
+        return res.status(400).json({ message: "Неверный URL Google Таблиц" });
+      }
+      
+      console.log('Google Sheets import request:', url);
+      
+      // Создаем запись о файле
+      const processedFile = await storage.createProcessedFile({
+                  originalName: `Google Sheets Import - ${new Date().toISOString()}`,
+          processedName: getOutputFileName(`google_sheets_import_${Date.now()}.xlsx`),
+          status: 'processing',
+          fileSize: 0, // Неизвестен пока
+          rowsProcessed: 0,
+          statistics: null,
+          errorMessage: null,
+      });
+
+      // Обрабатываем асинхронно с отслеживанием прогресса
+      setImmediate(async () => {
+        try {
+          console.log('🔄 Начинаем импорт из Google Таблиц');
+          
+          // Update to show download stage
+          console.log('📊 PROGRESS: Setting downloading stage (30%)');
+          await storage.updateProcessedFile(processedFile.id, {
+            status: 'processing',
+            rowsProcessed: 1,
+            statistics: JSON.stringify({ stage: 'downloading', message: 'Загрузка данных из Google Таблиц...' }),
+          });
+
+          // Импортируем данные из Google Таблиц
+          console.log('🔄 PROGRESS: Starting Google Sheets import...');
+          const fileBuffer = await importFromGoogleSheets(url);
+          console.log('✅ PROGRESS: Google Sheets import completed, size:', fileBuffer.length);
+          
+          // Update to show processing stage
+          console.log('📊 PROGRESS: Setting processing stage (70%)');
+          await storage.updateProcessedFile(processedFile.id, {
+            status: 'processing',
+            rowsProcessed: 2,
+            statistics: JSON.stringify({ stage: 'processing', message: 'Обработка данных...' }),
+          });
+          
+          // Сохраняем во временный файл
+          const tempFileName = `temp_google_sheets_${Date.now()}.xlsx`;
+          const tempPath = path.join(process.cwd(), 'uploads', tempFileName);
+          fs.writeFileSync(tempPath, fileBuffer);
+          console.log('📁 PROGRESS: Temp file saved:', tempPath);
+          
+          // Обрабатываем данные
+          console.log('🔄 PROGRESS: Starting file processing...');
+          const result = await simpleProcessor.processExcelFile(tempPath);
+          console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
+          
+          // Удаляем временный файл
+          fs.unlinkSync(tempPath);
+          console.log('🗑️ PROGRESS: Temp file deleted');
+          
+          // Обновляем запись об успешном завершении
+          const actualFileName = path.basename(result.outputPath);
+          console.log('✅ PROGRESS: Setting completed stage (100%), file:', actualFileName);
+          await storage.updateProcessedFile(processedFile.id, {
+            processedName: actualFileName,
+            status: 'completed',
+            fileSize: fileBuffer.length,
+            rowsProcessed: result.statistics.totalRows,
+            statistics: JSON.stringify(result.statistics),
+            completedAt: new Date(),
+          });
+
+          console.log('✅ Импорт из Google Таблиц завершен успешно');
+          
+        } catch (error) {
+          console.error('❌ Ошибка при импорте из Google Таблиц:', error);
+          await storage.updateProcessedFile(processedFile.id, {
+            status: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Ошибка при импорте из Google Таблиц',
+            completedAt: new Date(),
+          });
+        }
+      });
+
+      res.json({ 
+        message: "Импорт из Google Таблиц запущен",
+        fileId: processedFile.id,
+        file: processedFile
+      });
+
+    } catch (error) {
+      console.error('Google Sheets import error:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Ошибка при импорте из Google Таблиц" 
+      });
+    }
   });
 
   // Get processing status
