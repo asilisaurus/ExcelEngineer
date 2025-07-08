@@ -7,8 +7,69 @@ import { importFromGoogleSheets, validateGoogleSheetsUrl } from "./services/goog
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
 import path from 'path';
+import * as XLSX from 'xlsx';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get sheets list from file (for sheet selection)
+  app.post("/api/get-sheets", (req: Request, res: Response) => {
+    upload.single('file')(req, res, async (err: any) => {
+      try {
+        if (err) {
+          return res.status(400).json({ message: err.message || "Ошибка при загрузке файла" });
+        }
+        
+        if (!req.file) {
+          return res.status(400).json({ message: "Файл не был загружен" });
+        }
+
+        const workbook = XLSX.readFile(req.file!.path);
+        const sheetNames = workbook.SheetNames;
+        
+        // Analyze each sheet to get row counts
+        const sheetInfo = sheetNames.map(name => {
+          try {
+            const worksheet = workbook.Sheets[name];
+            const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            const nonEmptyRows = data.filter(row => 
+              row && Array.isArray(row) && row.some(cell => 
+                cell !== null && cell !== undefined && cell !== ''
+              )
+            );
+            
+            return {
+              name,
+              rowCount: nonEmptyRows.length,
+              hasData: nonEmptyRows.length > 0
+            };
+          } catch (error) {
+            return {
+              name,
+              rowCount: 0,
+              hasData: false
+            };
+          }
+        });
+
+        // Cleanup file
+        cleanupFile(req.file!.path);
+
+        res.json({
+          sheets: sheetInfo,
+          totalSheets: sheetNames.length
+        });
+
+      } catch (error) {
+        console.error('Get sheets error:', error);
+        if (req.file) {
+          cleanupFile(req.file.path);
+        }
+        res.status(500).json({ 
+          message: error instanceof Error ? error.message : "Ошибка при анализе файла" 
+        });
+      }
+    });
+  });
+
   // Upload and process Excel file
   app.post("/api/upload", (req: Request, res: Response) => {
     upload.single('file')(req, res, async (err: any) => {
@@ -60,7 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Process the file using the fixed processor
             console.log('🔄 PROGRESS: Starting file processing with fixed processor...');
-            const result = await fixedProcessor.processExcelFile(req.file!.path);
+            const selectedSheet = req.body.selectedSheet; // Получаем выбранный лист из формы
+            const result = await fixedProcessor.processExcelFile(req.file!.path, undefined, selectedSheet);
             console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
 
             // Update to show processing stage

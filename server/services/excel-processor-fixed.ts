@@ -48,7 +48,8 @@ export class ExcelProcessorFixed {
 
   async processExcelFile(
     input: string | Buffer, 
-    fileName?: string
+    fileName?: string,
+    selectedSheet?: string
   ): Promise<{ outputPath: string; statistics: ProcessingStats }> {
     const startTime = Date.now();
     
@@ -63,7 +64,7 @@ export class ExcelProcessorFixed {
       console.log(`📅 Определен месяц: ${monthInfo.name} (источник: ${monthInfo.detectedFrom})`);
       
       // 3. Поиск подходящего листа с данными
-      const targetSheet = this.findDataSheet(workbook, monthInfo);
+      const targetSheet = this.findDataSheet(workbook, monthInfo, selectedSheet);
       console.log(`📋 Выбран лист: ${targetSheet.name || 'unknown'}`);
       
       // 4. Извлечение данных
@@ -205,27 +206,77 @@ export class ExcelProcessorFixed {
     };
   }
 
-  private findDataSheet(workbook: XLSX.WorkBook, monthInfo: MonthInfo): XLSX.WorkSheet {
+  private findDataSheet(workbook: XLSX.WorkBook, monthInfo: MonthInfo, selectedSheet?: string): XLSX.WorkSheet {
     const sheetNames = workbook.SheetNames;
+    console.log('📋 Найдены листы:', sheetNames);
+    
+    // Приоритет 0: Если явно выбран лист, используем его
+    if (selectedSheet && sheetNames.includes(selectedSheet)) {
+      console.log(`🎯 Используется выбранный лист: ${selectedSheet}`);
+      const sheet = workbook.Sheets[selectedSheet];
+      (sheet as any).name = selectedSheet;
+      return sheet;
+    }
+    
+    // Приоритет 1: Точное совпадение с текущим месяцем
+    const monthPatterns = [
+      monthInfo.name.toLowerCase(),
+      monthInfo.shortName.toLowerCase(),
+      monthInfo.name.toLowerCase() + '25',
+      monthInfo.shortName.toLowerCase() + '25',
+      monthInfo.name.toLowerCase() + '24',
+      monthInfo.shortName.toLowerCase() + '24'
+    ];
     
     let bestSheet = workbook.Sheets[sheetNames[0]];
     let maxRows = 0;
     let bestSheetName = sheetNames[0];
+    let monthMatch = false;
 
+    // Сначала ищем листы с совпадающим месяцем
     for (const sheetName of sheetNames) {
-      try {
-        const sheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-        if (data.length > maxRows) {
-          maxRows = data.length;
-          bestSheet = sheet;
-          bestSheetName = sheetName;
+      const lowerSheetName = sheetName.toLowerCase();
+      const isMonthMatch = monthPatterns.some(pattern => lowerSheetName.includes(pattern));
+      
+      if (isMonthMatch) {
+        try {
+          const sheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+          
+          if (data.length > maxRows || !monthMatch) {
+            maxRows = data.length;
+            bestSheet = sheet;
+            bestSheetName = sheetName;
+            monthMatch = true;
+            console.log(`📅 Найден лист с совпадающим месяцем: ${sheetName} (${data.length} строк)`);
+          }
+        } catch (error) {
+          console.warn(`Ошибка при анализе листа ${sheetName}:`, error);
         }
-      } catch (error) {
-        console.warn(`Ошибка при анализе листа ${sheetName}:`, error);
       }
     }
 
+    // Если не найден лист с совпадающим месяцем, выбираем лист с наибольшим количеством строк
+    if (!monthMatch) {
+      console.log('⚠️ Лист с совпадающим месяцем не найден, выбираем лист с наибольшим количеством строк');
+      maxRows = 0;
+      
+      for (const sheetName of sheetNames) {
+        try {
+          const sheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+          if (data.length > maxRows) {
+            maxRows = data.length;
+            bestSheet = sheet;
+            bestSheetName = sheetName;
+          }
+        } catch (error) {
+          console.warn(`Ошибка при анализе листа ${sheetName}:`, error);
+        }
+      }
+    }
+
+    console.log(`📋 Выбран лист: ${bestSheetName} (${maxRows} строк)`);
     (bestSheet as any).name = bestSheetName;
     return bestSheet;
   }
