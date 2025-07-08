@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { reliableProcessor } from "./services/excel-processor-reliable";
+import { fixedProcessor } from "./services/excel-processor-fixed";
 import { importFromGoogleSheets, validateGoogleSheetsUrl } from "./services/google-sheets-importer";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
@@ -58,9 +58,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               statistics: JSON.stringify({ stage: 'reading', message: 'Чтение файла...' }),
             });
 
-            // Process the file using the reliable processor
-            console.log('🔄 PROGRESS: Starting file processing with reliable processor...');
-            const result = await reliableProcessor.processExcelFile(req.file!.path);
+            // Process the file using the fixed processor
+            console.log('🔄 PROGRESS: Starting file processing with fixed processor...');
+            const result = await fixedProcessor.processExcelFile(req.file!.path);
             console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
 
             // Update to show processing stage
@@ -181,9 +181,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fs.writeFileSync(tempPath, fileBuffer);
           console.log('📁 PROGRESS: Temp file saved:', tempPath);
           
-          // Обрабатываем данные с надежным процессором
-          console.log('🔄 PROGRESS: Starting file processing with reliable processor...');
-          const result = await reliableProcessor.processExcelFile(tempPath);
+          // Обрабатываем данные с исправленным процессором
+          console.log('🔄 PROGRESS: Starting file processing with fixed processor...');
+          const result = await fixedProcessor.processExcelFile(tempPath);
           console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
           
           // Удаляем временный файл
