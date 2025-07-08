@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 
-// Типизация из perfect processor
+// Интерфейс статистики для unified процессора
 interface ProcessingStats {
   totalRows: number;
   reviewsCount: number;
