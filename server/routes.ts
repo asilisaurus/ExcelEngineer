@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { simpleProcessor } from "./services/excel-processor-simple";
+import { unifiedProcessor } from "./services/excel-processor-unified";
 import { importFromGoogleSheets, validateGoogleSheetsUrl } from "./services/google-sheets-importer";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
@@ -58,9 +58,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               statistics: JSON.stringify({ stage: 'reading', message: 'Чтение файла...' }),
             });
 
-            // Process the file
-            console.log('🔄 PROGRESS: Starting file processing...');
-            const result = await simpleProcessor.processExcelFile(req.file!.path);
+            // Process the file using the unified processor
+            console.log('🔄 PROGRESS: Starting file processing with unified processor...');
+            const result = await unifiedProcessor.processExcelFile(req.file!.path);
             console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
 
             // Update to show processing stage
@@ -181,9 +181,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fs.writeFileSync(tempPath, fileBuffer);
           console.log('📁 PROGRESS: Temp file saved:', tempPath);
           
-          // Обрабатываем данные
-          console.log('🔄 PROGRESS: Starting file processing...');
-          const result = await simpleProcessor.processExcelFile(tempPath);
+          // Обрабатываем данные с объединенным процессором
+          console.log('🔄 PROGRESS: Starting file processing with unified processor...');
+          const result = await unifiedProcessor.processExcelFile(tempPath);
           console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
           
           // Удаляем временный файл
