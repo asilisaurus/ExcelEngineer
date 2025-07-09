@@ -438,7 +438,7 @@ export class ExcelProcessorFixed {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
-      const themeColumn = columnMapping['тема'] || columnMapping['заголовок'] || columnMapping['название'] || -1;
+      const linkColumn = columnMapping['ссылка на сообщение'] || 3; // Используем ссылку для темы!
       const dateColumn = columnMapping['дата'] || 6;
       const nickColumn = columnMapping['ник'] || 7;
       const authorColumn = columnMapping['автор'] || 8;
@@ -452,16 +452,8 @@ export class ExcelProcessorFixed {
       if (!площадка && !текст) return null;
       if (текст.length < 10) return null;
       
-      // Извлекаем тему из отдельной колонки, если она есть
-      let тема = '';
-      if (themeColumn >= 0 && row[themeColumn]) {
-        тема = this.getCleanValue(row[themeColumn]);
-      }
-      
-      // Если тема пустая или слишком короткая, извлекаем из текста
-      if (!тема || тема.length < 5) {
-        тема = this.extractTheme(текст);
-      }
+      // В колонке "Тема" должна быть ссылка на сообщение!
+      const тема = this.getCleanValue(row[linkColumn]) || '';
       
       return {
         площадка,
@@ -485,7 +477,7 @@ export class ExcelProcessorFixed {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
-      const themeColumn = columnMapping['тема'] || columnMapping['заголовок'] || columnMapping['название'] || -1;
+      const linkColumn = columnMapping['ссылка на сообщение'] || 3; // Используем ссылку для темы!
       const dateColumn = columnMapping['дата'] || 6;
       const nickColumn = columnMapping['ник'] || 7;
       const authorColumn = columnMapping['автор'] || 8;
@@ -499,16 +491,8 @@ export class ExcelProcessorFixed {
       if (!площадка && !текст) return null;
       if (текст.length < 10) return null;
       
-      // Извлекаем тему из отдельной колонки, если она есть
-      let тема = '';
-      if (themeColumn >= 0 && row[themeColumn]) {
-        тема = this.getCleanValue(row[themeColumn]);
-      }
-      
-      // Если тема пустая или слишком короткая, извлекаем из текста
-      if (!тема || тема.length < 5) {
-        тема = this.extractTheme(текст);
-      }
+      // В колонке "Тема" должна быть ссылка на сообщение!
+      const тема = this.getCleanValue(row[linkColumn]) || '';
       
       return {
         площадка,
