@@ -438,6 +438,7 @@ export class ExcelProcessorFixed {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
+      const themeColumn = columnMapping['тема'] || columnMapping['заголовок'] || columnMapping['название'] || -1;
       const dateColumn = columnMapping['дата'] || 6;
       const nickColumn = columnMapping['ник'] || 7;
       const authorColumn = columnMapping['автор'] || 8;
@@ -451,9 +452,20 @@ export class ExcelProcessorFixed {
       if (!площадка && !текст) return null;
       if (текст.length < 10) return null;
       
+      // Извлекаем тему из отдельной колонки, если она есть
+      let тема = '';
+      if (themeColumn >= 0 && row[themeColumn]) {
+        тема = this.getCleanValue(row[themeColumn]);
+      }
+      
+      // Если тема пустая или слишком короткая, извлекаем из текста
+      if (!тема || тема.length < 5) {
+        тема = this.extractTheme(текст);
+      }
+      
       return {
         площадка,
-        тема: this.extractTheme(текст),
+        тема,
         текст,
         дата: this.extractDateByStructure(row, dateColumn),
         ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
@@ -473,6 +485,7 @@ export class ExcelProcessorFixed {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
+      const themeColumn = columnMapping['тема'] || columnMapping['заголовок'] || columnMapping['название'] || -1;
       const dateColumn = columnMapping['дата'] || 6;
       const nickColumn = columnMapping['ник'] || 7;
       const authorColumn = columnMapping['автор'] || 8;
@@ -486,9 +499,20 @@ export class ExcelProcessorFixed {
       if (!площадка && !текст) return null;
       if (текст.length < 10) return null;
       
+      // Извлекаем тему из отдельной колонки, если она есть
+      let тема = '';
+      if (themeColumn >= 0 && row[themeColumn]) {
+        тема = this.getCleanValue(row[themeColumn]);
+      }
+      
+      // Если тема пустая или слишком короткая, извлекаем из текста
+      if (!тема || тема.length < 5) {
+        тема = this.extractTheme(текст);
+      }
+      
       return {
         площадка,
-        тема: this.extractTheme(текст),
+        тема,
         текст,
         дата: this.extractDateByStructure(row, dateColumn),
         ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
@@ -507,14 +531,178 @@ export class ExcelProcessorFixed {
   private extractTheme(text: string): string {
     if (!text) return '';
     
-    let cleanText = text.replace(/^(Название:\s*|Заголовок:\s*|Тема:\s*)/i, '').trim();
+    // Удаляем лишние пробелы и переносы строк
+    const cleanText = text.replace(/\s+/g, ' ').trim();
     
-    const firstSentence = cleanText.split(/[.!?]/)[0];
-    if (firstSentence.length <= 50) {
-      return firstSentence.trim();
+    // Ищем явные указания на тему/название
+    const themePatterns = [
+      /(?:Название|Заголовок|Тема|Суть|Проблема|Вопрос):\s*([^.!?]*)/i,
+      /^([^.!?]{15,80}?)(?:\.|!|\?|$)/,  // Первое предложение 15-80 символов
+      /^(.{15,80}?)(?:\s*[-–—]\s*|\s*\.\s*)/,  // До тире или точки
+    ];
+    
+    for (const pattern of themePatterns) {
+      const match = cleanText.match(pattern);
+      if (match && match[1]) {
+        let theme = match[1].trim();
+        
+        // Убираем лишние символы в начале и конце
+        theme = theme.replace(/^[^\w\u0400-\u04FF]+|[^\w\u0400-\u04FF]+$/g, '');
+        
+        if (theme.length >= 15 && theme.length <= 80) {
+          return theme;
+        }
+      }
     }
     
-    return cleanText.substring(0, 47).trim() + '...';
+    // Ищем смысловую тему
+    const semanticTheme = this.extractSemanticTheme(cleanText);
+    if (semanticTheme) {
+      return semanticTheme;
+    }
+    
+    // Если не нашли подходящую тему, создаем из ключевых слов
+    const keywordTheme = this.extractKeywordsTheme(cleanText);
+    if (keywordTheme) {
+      return keywordTheme;
+    }
+    
+    // Fallback: умный обрез первых слов
+    const smartFallback = this.createSmartFallback(cleanText);
+    return smartFallback || 'Без темы';
+  }
+  
+  private extractSemanticTheme(text: string): string {
+    const textLower = text.toLowerCase();
+    
+    // Шаблоны для определения типа отзыва/комментария
+    const themeTemplates = [
+      {
+        pattern: /(?:помогает|помог|эффективн|рекомендую|советую)/i,
+        prefix: 'Положительный отзыв: '
+      },
+      {
+        pattern: /(?:не помогает|не помог|бесполезн|плохо|ужасно)/i,
+        prefix: 'Отрицательный отзыв: '
+      },
+      {
+        pattern: /(?:вопрос|как|где|когда|можно ли|стоит ли)/i,
+        prefix: 'Вопрос: '
+      },
+      {
+        pattern: /(?:побочные|побочка|аллергия|реакция|плохо стал)/i,
+        prefix: 'Побочные эффекты: '
+      },
+      {
+        pattern: /(?:дозировка|доза|сколько|как принимать|схема)/i,
+        prefix: 'Дозировка: '
+      },
+      {
+        pattern: /(?:результат|эффект|изменения|улучшения)/i,
+        prefix: 'Результаты: '
+      }
+    ];
+    
+    for (const template of themeTemplates) {
+      if (template.pattern.test(textLower)) {
+        // Извлекаем ключевую фразу после совпадения
+        const match = text.match(new RegExp(`(${template.pattern.source})([^.!?]{10,50})`, 'i'));
+        if (match && match[2]) {
+          const keyPhrase = match[2].trim();
+          return template.prefix + keyPhrase;
+        }
+        
+        // Если не удалось извлечь фразу, используем первые слова
+        const words = text.split(' ').slice(0, 8).join(' ');
+        if (words.length > 15) {
+          return template.prefix + words;
+        }
+      }
+    }
+    
+    return '';
+  }
+  
+  private createSmartFallback(text: string): string {
+    // Берем первые 6-8 слов, но не более 60 символов
+    const words = text.split(' ');
+    let result = '';
+    
+    for (let i = 0; i < Math.min(words.length, 8); i++) {
+      const nextWord = words[i];
+      if (result.length + nextWord.length + 1 <= 60) {
+        result += (result ? ' ' : '') + nextWord;
+      } else {
+        break;
+      }
+    }
+    
+    // Убираем незавершенные предложения
+    if (result.length > 15) {
+      return result + '...';
+    }
+    
+    return '';
+  }
+  
+  private extractKeywordsTheme(text: string): string {
+    if (!text || text.length < 20) return '';
+    
+    // Ключевые слова для поиска темы
+    const healthKeywords = [
+      'витамин', 'препарат', 'лечение', 'здоровье', 'болезнь', 'симптом',
+      'эффективность', 'результат', 'прием', 'дозировка', 'побочные',
+      'рекомендую', 'помогает', 'лекарство', 'врач', 'анализы'
+    ];
+    
+    const productKeywords = [
+      'фортедетрим', 'форте', 'детрим', 'аквадетрим', 'витамин д', 'кальций'
+    ];
+    
+    const textLower = text.toLowerCase();
+    
+    // Ищем упоминания продукта
+    for (const keyword of productKeywords) {
+      if (textLower.includes(keyword)) {
+        // Извлекаем контекст вокруг ключевого слова
+        const index = textLower.indexOf(keyword);
+        const start = Math.max(0, index - 30);
+        const end = Math.min(text.length, index + keyword.length + 50);
+        
+        let context = text.substring(start, end).trim();
+        
+        // Обрезаем до предложения
+        const sentences = context.split(/[.!?]/);
+        if (sentences.length > 0) {
+          context = sentences[0].trim();
+          if (context.length >= 15 && context.length <= 70) {
+            return context;
+          }
+        }
+      }
+    }
+    
+    // Ищем медицинские термины
+    for (const keyword of healthKeywords) {
+      if (textLower.includes(keyword)) {
+        const index = textLower.indexOf(keyword);
+        const start = Math.max(0, index - 20);
+        const end = Math.min(text.length, index + keyword.length + 40);
+        
+        let context = text.substring(start, end).trim();
+        
+        // Обрезаем до предложения
+        const sentences = context.split(/[.!?]/);
+        if (sentences.length > 0) {
+          context = sentences[0].trim();
+          if (context.length >= 15 && context.length <= 70) {
+            return context;
+          }
+        }
+      }
+    }
+    
+    return '';
   }
 
   private extractDateByStructure(row: any[], dateColumn: number): string {
