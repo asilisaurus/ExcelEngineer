@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload, cleanupFile, getOutputFileName } from "./services/file-handler";
-import { fixedProcessor } from "./services/excel-processor-fixed";
+import { improvedProcessorV2 } from "./services/excel-processor-improved-v2";
 import { importFromGoogleSheets, validateGoogleSheetsUrl } from "./services/google-sheets-importer";
 import { insertProcessedFileSchema, processingStatsSchema } from "@shared/schema";
 import fs from 'fs';
@@ -119,10 +119,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               statistics: JSON.stringify({ stage: 'reading', message: 'Чтение файла...' }),
             });
 
-            // Process the file using the fixed processor
-            console.log('🔄 PROGRESS: Starting file processing with fixed processor...');
+            // Process the file using the improved V2 processor
+            console.log('🔄 PROGRESS: Starting file processing with improved V2 processor...');
             const selectedSheet = req.body.selectedSheet; // Получаем выбранный лист из формы
-            const result = await fixedProcessor.processExcelFile(req.file!.path, undefined, selectedSheet);
+            const result = await improvedProcessorV2.processExcelFile(req.file!.path, undefined, selectedSheet);
             console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
 
             // Update to show processing stage
@@ -243,9 +243,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fs.writeFileSync(tempPath, fileBuffer);
           console.log('📁 PROGRESS: Temp file saved:', tempPath);
           
-          // Обрабатываем данные с исправленным процессором
-          console.log('🔄 PROGRESS: Starting file processing with fixed processor...');
-          const result = await fixedProcessor.processExcelFile(tempPath);
+          // Обрабатываем данные с улучшенным V2 процессором
+          console.log('🔄 PROGRESS: Starting file processing with improved V2 processor...');
+          const result = await improvedProcessorV2.processExcelFile(tempPath);
           console.log('✅ PROGRESS: File processing completed, path:', result.outputPath);
           
           // Удаляем временный файл
