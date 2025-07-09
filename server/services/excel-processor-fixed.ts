@@ -301,7 +301,7 @@ export class ExcelProcessorFixed {
   }
 
   private analyzeAndExtractDataCorrectly(rawData: any[][], monthInfo: MonthInfo, fileName: string): ProcessedData {
-    console.log('🔍 FIXED EXTRACTION - Анализ структуры данных...');
+    console.log('🔍 IMPROVED EXTRACTION - Гибкий анализ структуры данных...');
     
     const reviews: DataRow[] = [];
     const comments: DataRow[] = [];
@@ -311,45 +311,112 @@ export class ExcelProcessorFixed {
     let headerRowIndex = -1;
     let columnMapping: { [key: string]: number } = {};
     
+    // Улучшенный поиск заголовков с поддержкой вариаций
     for (let i = 0; i < Math.min(10, rawData.length); i++) {
       const row = rawData[i];
       if (row && Array.isArray(row)) {
         const rowStr = row.map(cell => (cell || '').toString().toLowerCase()).join(' ');
-        if (rowStr.includes('тип размещения') || rowStr.includes('площадка') || rowStr.includes('текст сообщения')) {
+        const hasKeyHeaders = rowStr.includes('площадка') || 
+                             rowStr.includes('текст сообщения') || 
+                             rowStr.includes('дата') ||
+                             rowStr.includes('ник') ||
+                             rowStr.includes('тип поста');
+        
+        if (hasKeyHeaders) {
           headerRowIndex = i;
           
           row.forEach((header, index) => {
             if (header) {
               const cleanHeader = header.toString().toLowerCase().trim();
               columnMapping[cleanHeader] = index;
+              
+              // Добавляем алиасы для гибкости
+              if (cleanHeader.includes('площадка')) {
+                columnMapping['площадка'] = index;
+              }
+              if (cleanHeader.includes('тема') || cleanHeader.includes('ссылка на сообщение')) {
+                columnMapping['тема'] = index;
+              }
+              if (cleanHeader.includes('текст сообщения') || cleanHeader.includes('текст')) {
+                columnMapping['текст'] = index;
+              }
+              if (cleanHeader.includes('дата')) {
+                columnMapping['дата'] = index;
+              }
+              if (cleanHeader.includes('ник') || cleanHeader.includes('автор')) {
+                columnMapping['ник'] = index;
+              }
+              if (cleanHeader.includes('просмотры') || cleanHeader.includes('прочтения')) {
+                columnMapping['просмотры'] = index;
+              }
+              if (cleanHeader.includes('вовлечение')) {
+                columnMapping['вовлечение'] = index;
+              }
+              if (cleanHeader.includes('тип поста')) {
+                columnMapping['тип поста'] = index;
+              }
+              // Дополнительные колонки для расчета просмотров
+              if (cleanHeader.includes('за месяц')) {
+                columnMapping['за месяц'] = index;
+              }
+              if (cleanHeader.includes('итог')) {
+                columnMapping['итог'] = index;
+              }
             }
           });
           
-          console.log('Найденные заголовки:', row);
-          console.log('Маппинг колонок:', columnMapping);
+          console.log('🎯 Найденные заголовки:', row);
+          console.log('🗂️ Маппинг колонок:', columnMapping);
           break;
         }
       }
     }
     
     if (headerRowIndex === -1) {
-      console.warn('⚠️ Заголовки не найдены, используем стандартные позиции');
-      columnMapping = {
-        'тип размещения': 0,
-        'площадка': 1,
-        'продукт': 2,
-        'ссылка на сообщение': 3,
-        'текст сообщения': 4,
-        'согласование/комментарии': 5,
-        'дата': 6,
-        'ник': 7,
-        'автор': 8,
-        'просмотры темы на старте': 10,
-        'просмотры в конце месяца': 11,
-        'просмотров получено': 12,
-        'вовлечение': 13,
-        'тип поста': 14
-      };
+      console.warn('⚠️ Заголовки не найдены, пытаемся определить структуру автоматически...');
+      
+      // Попытка автоматического определения структуры по содержимому
+      const sampleRows = rawData.slice(0, 20);
+      const urlPattern = /https?:\/\/[^\s]+/;
+      const datePattern = /\d{1,2}\/\d{1,2}\/\d{2,4}/;
+      
+      for (let colIndex = 0; colIndex < 15; colIndex++) {
+        let urlCount = 0;
+        let dateCount = 0;
+        let textCount = 0;
+        
+        for (const row of sampleRows) {
+          if (row && row[colIndex]) {
+            const cellValue = row[colIndex].toString();
+            if (urlPattern.test(cellValue)) urlCount++;
+            if (datePattern.test(cellValue)) dateCount++;
+            if (cellValue.length > 50) textCount++;
+          }
+        }
+        
+        // Определяем тип колонки по содержимому
+        if (urlCount > sampleRows.length * 0.3) {
+          if (!columnMapping['тема']) columnMapping['тема'] = colIndex;
+        }
+        if (dateCount > sampleRows.length * 0.3) {
+          if (!columnMapping['дата']) columnMapping['дата'] = colIndex;
+        }
+        if (textCount > sampleRows.length * 0.3) {
+          if (!columnMapping['текст']) columnMapping['текст'] = colIndex;
+        }
+      }
+      
+      // Устанавливаем базовые позиции если не найдены
+      if (!columnMapping['площадка']) columnMapping['площадка'] = 0;
+      if (!columnMapping['тема']) columnMapping['тема'] = 1;
+      if (!columnMapping['текст']) columnMapping['текст'] = 2;
+      if (!columnMapping['дата']) columnMapping['дата'] = 4;
+      if (!columnMapping['ник']) columnMapping['ник'] = 5;
+      if (!columnMapping['просмотры']) columnMapping['просмотры'] = 6;
+      if (!columnMapping['вовлечение']) columnMapping['вовлечение'] = 9;
+      if (!columnMapping['тип поста']) columnMapping['тип поста'] = 10;
+      
+      console.log('🔧 Автоматически определенная структура:', columnMapping);
     }
     
     const startRow = headerRowIndex + 1;
@@ -399,18 +466,24 @@ export class ExcelProcessorFixed {
   }
 
   private analyzeRowTypeByStructure(row: any[], columnMapping: { [key: string]: number }): string {
-    const typeColumn = columnMapping['тип размещения'] || 0;
-    const postTypeColumn = columnMapping['тип поста'] || 14;
-    const textColumn = columnMapping['текст сообщения'] || 4;
-    const platformColumn = columnMapping['площадка'] || 1;
+    const platformColumn = columnMapping['площадка'] || 0;
+    const textColumn = columnMapping['текст'] || columnMapping['текст сообщения'] || 2;
+    const postTypeColumn = columnMapping['тип поста'] || 10;
+    const linkColumn = columnMapping['тема'] || columnMapping['ссылка на сообщение'] || 1;
     
-    const typeValue = this.getCleanValue(row[typeColumn]).toLowerCase();
-    const postTypeValue = this.getCleanValue(row[postTypeColumn]).toLowerCase();
-    const textValue = this.getCleanValue(row[textColumn]);
     const platformValue = this.getCleanValue(row[platformColumn]);
+    const textValue = this.getCleanValue(row[textColumn]);
+    const postTypeValue = this.getCleanValue(row[postTypeColumn]).toLowerCase();
+    const linkValue = this.getCleanValue(row[linkColumn]);
     
-    if (!textValue && !platformValue) return 'empty';
+    // Проверка на пустую строку
+    if (!textValue && !platformValue && !linkValue) return 'empty';
     
+    // Проверка на служебные строки
+    if (platformValue.toLowerCase().includes('отзыв') && !linkValue) return 'empty';
+    if (textValue === '...' || textValue.length < 3) return 'empty';
+    
+    // Гибкая классификация по типу поста
     if (postTypeValue === 'ос' || postTypeValue === 'основное сообщение') {
       return 'review';
     }
@@ -419,12 +492,22 @@ export class ExcelProcessorFixed {
       return 'comment';  
     }
     
-    if (typeValue.includes('отзыв') || typeValue.includes('отзыв на товар')) {
+    // Классификация по URL платформы
+    if (linkValue.includes('otzovik.com') || linkValue.includes('irecommend.ru') || 
+        linkValue.includes('otzyvru.com') || linkValue.includes('medum.ru')) {
       return 'review';
     }
     
-    if (typeValue.includes('комментарий') || typeValue.includes('обсуждение')) {
-      return 'comment';
+    // Классификация по содержимому площадки
+    if (platformValue.toLowerCase().includes('отзыв') || 
+        platformValue.toLowerCase().includes('irecommend') ||
+        platformValue.toLowerCase().includes('otzovik')) {
+      return 'review';
+    }
+    
+    // Классификация по содержимому текста
+    if (textValue.length > 100) {
+      return 'review';
     }
     
     if (textValue.length > 10) {
@@ -436,32 +519,34 @@ export class ExcelProcessorFixed {
 
   private extractReviewDataByStructure(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
     try {
-      const platformColumn = columnMapping['площадка'] || 1;
-      const textColumn = columnMapping['текст сообщения'] || 4;
-      const linkColumn = columnMapping['ссылка на сообщение'] || 3; // Используем ссылку для темы!
-      const dateColumn = columnMapping['дата'] || 6;
-      const nickColumn = columnMapping['ник'] || 7;
-      const authorColumn = columnMapping['автор'] || 8;
-      const viewsColumn1 = columnMapping['просмотры в конце месяца'] || 11;
-      const viewsColumn2 = columnMapping['просмотров получено'] || 12;
-      const engagementColumn = columnMapping['вовлечение'] || 13;
+      const platformColumn = columnMapping['площадка'] || 0;
+      const textColumn = columnMapping['текст'] || columnMapping['текст сообщения'] || 2;
+      const linkColumn = columnMapping['тема'] || columnMapping['ссылка на сообщение'] || 1;
+      const dateColumn = columnMapping['дата'] || 4;
+      const nickColumn = columnMapping['ник'] || 5;
+      const viewsColumn = columnMapping['просмотры'] || columnMapping['прочтения'] || 6;
+      const viewsColumn2 = columnMapping['за месяц'] || 7;
+      const viewsColumn3 = columnMapping['итог'] || 8;
+      const engagementColumn = columnMapping['вовлечение'] || 9;
       
       const площадка = this.getCleanValue(row[platformColumn]);
       const текст = this.getCleanValue(row[textColumn]);
-      
-      if (!площадка && !текст) return null;
-      if (текст.length < 10) return null;
-      
-      // В колонке "Тема" должна быть ссылка на сообщение!
       const тема = this.getCleanValue(row[linkColumn]) || '';
       
+      // Гибкая проверка на валидность данных
+      if (!площадка && !текст && !тема) return null;
+      if (текст === '...' || текст.length < 3) return null;
+      
+      // Для отзывов приоритет отдаем текстовому содержимому
+      const actualText = текст.length > 10 ? текст : тема;
+      
       return {
-        площадка,
-        тема,
-        текст,
+        площадка: площадка || 'Неизвестно',
+        тема: тема || площадка || 'Без темы',
+        текст: actualText,
         дата: this.extractDateByStructure(row, dateColumn),
-        ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
-        просмотры: this.extractViewsByStructure(row, viewsColumn1, viewsColumn2),
+        ник: this.extractAuthorByStructure(row, nickColumn, nickColumn),
+        просмотры: this.extractViewsByStructure(row, viewsColumn, viewsColumn2),
         вовлечение: this.extractEngagementByStructure(row, engagementColumn),
         типПоста: 'ОС',
         section: 'reviews',
@@ -475,32 +560,33 @@ export class ExcelProcessorFixed {
 
   private extractCommentDataByStructure(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
     try {
-      const platformColumn = columnMapping['площадка'] || 1;
-      const textColumn = columnMapping['текст сообщения'] || 4;
-      const linkColumn = columnMapping['ссылка на сообщение'] || 3; // Используем ссылку для темы!
-      const dateColumn = columnMapping['дата'] || 6;
-      const nickColumn = columnMapping['ник'] || 7;
-      const authorColumn = columnMapping['автор'] || 8;
-      const viewsColumn1 = columnMapping['просмотры в конце месяца'] || 11;
-      const viewsColumn2 = columnMapping['просмотров получено'] || 12;
-      const engagementColumn = columnMapping['вовлечение'] || 13;
+      const platformColumn = columnMapping['площадка'] || 0;
+      const textColumn = columnMapping['текст'] || columnMapping['текст сообщения'] || 2;
+      const linkColumn = columnMapping['тема'] || columnMapping['ссылка на сообщение'] || 1;
+      const dateColumn = columnMapping['дата'] || 4;
+      const nickColumn = columnMapping['ник'] || 5;
+      const viewsColumn = columnMapping['просмотры'] || columnMapping['прочтения'] || 6;
+      const viewsColumn2 = columnMapping['за месяц'] || 7;
+      const engagementColumn = columnMapping['вовлечение'] || 9;
       
       const площадка = this.getCleanValue(row[platformColumn]);
       const текст = this.getCleanValue(row[textColumn]);
-      
-      if (!площадка && !текст) return null;
-      if (текст.length < 10) return null;
-      
-      // В колонке "Тема" должна быть ссылка на сообщение!
       const тема = this.getCleanValue(row[linkColumn]) || '';
       
+      // Гибкая проверка на валидность данных
+      if (!площадка && !текст && !тема) return null;
+      if (текст === '...' || текст.length < 3) return null;
+      
+      // Для комментариев можем использовать более короткий текст
+      const actualText = текст.length > 5 ? текст : тема;
+      
       return {
-        площадка,
-        тема,
-        текст,
+        площадка: площадка || 'Неизвестно',
+        тема: тема || площадка || 'Без темы',
+        текст: actualText,
         дата: this.extractDateByStructure(row, dateColumn),
-        ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
-        просмотры: this.extractViewsByStructure(row, viewsColumn1, viewsColumn2),
+        ник: this.extractAuthorByStructure(row, nickColumn, nickColumn),
+        просмотры: this.extractViewsByStructure(row, viewsColumn, viewsColumn2),
         вовлечение: this.extractEngagementByStructure(row, engagementColumn),
         типПоста: 'ЦС',
         section: 'comments',
