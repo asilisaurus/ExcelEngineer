@@ -3,6 +3,42 @@ import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 
+// КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Конфигурация на основе структурного анализа
+const CONFIG = {
+  HEADERS: {
+    headerRow: 4,        // Заголовки ВСЕГДА в строке 4 (индекс 3)
+    dataStartRow: 5,     // Данные начинаются с строки 5 (индекс 4)
+    infoRows: [1, 2, 3]  // Строки 1-3 содержат мета-информацию
+  },
+  CONTENT_TYPES: {
+    REVIEWS: ['ОС', 'Отзывы Сайтов', 'отзывы (отзовики)', 'отзыв на товар'],
+    TARGETED: ['ЦС', 'Целевые Сайты', 'целевое сообщение'], 
+    SOCIAL: ['ПС', 'Площадки Социальные', 'соц.сети'],
+    COMMENTS: ['комментарии', 'обсуждениях']
+  },
+  COLUMN_MAPPING: {
+    'тип размещения': 0,     // Колонка A = индекс 0
+    'площадка': 1,           // Колонка B = индекс 1  
+    'продукт': 2,            // Колонка C = индекс 2
+    'ссылка на сообщение': 3, // Колонка D = индекс 3
+    'текст сообщения': 4,    // Колонка E = индекс 4
+    'согласование/комментарии': 5, // Колонка F = индекс 5
+    'дата': 6,               // Колонка G = индекс 6
+    'ник': 7,                // Колонка H = индекс 7
+    'автор': 8,              // Колонка I = индекс 8
+    'просмотры темы на старте': 10,     // Колонка K = индекс 10
+    'просмотры в конце месяца': 11,     // Колонка L = индекс 11 (ИСПРАВЛЕНО!)
+    'просмотров получено': 12,          // Колонка M = индекс 12
+    'вовлечение': 13,                   // Колонка N = индекс 13
+    'тип поста': 14                     // Колонка O = индекс 14
+  },
+  EXPECTED_COUNTS: {
+    REVIEWS: 13,     // Ожидаемое количество отзывов (ОС)
+    COMMENTS: 15,    // Ожидаемое количество комментариев
+    DISCUSSIONS: 42  // Ожидаемое количество активных обсуждений
+  }
+};
+
 // Интерфейсы для улучшенного процессора V2
 interface ProcessingStats {
   totalRows: number;
@@ -54,7 +90,8 @@ export class ExcelProcessorImprovedV2 {
     const startTime = Date.now();
     
     try {
-      console.log('🔥 IMPROVED V2 PROCESSOR - Начало обработки файла:', fileName || 'unknown');
+      console.log('🔥 CRITICAL UPDATE V2 PROCESSOR - Начало обработки файла:', fileName || 'unknown');
+      console.log('📋 Конфигурация: заголовки в строке 4, данные с строки 5');
       
       // 1. Безопасное чтение файла
       const { workbook, originalFileName } = await this.safeReadFile(input, fileName);
@@ -71,8 +108,8 @@ export class ExcelProcessorImprovedV2 {
       const rawData = this.extractRawData(targetSheet);
       console.log(`📊 Извлечено строк: ${rawData.length}`);
       
-      // 5. ИСПРАВЛЕННЫЙ анализ структуры данных и извлечение записей
-      const processedData = this.analyzeAndExtractDataCorrectlyV2(rawData, monthInfo, originalFileName);
+      // 5. КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: анализ структуры данных на основе исследования
+      const processedData = this.analyzeAndExtractDataCriticalUpdateV2(rawData, monthInfo, originalFileName);
       
       // 6. Создание эталонного отчета с ИТОГО строкой
       const outputPath = await this.createReferenceReportV2(processedData);
@@ -169,6 +206,28 @@ export class ExcelProcessorImprovedV2 {
       'дек': { name: 'Декабрь', short: 'Дек' }
     };
 
+    // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Приоритет для самого свежего месяца
+    const currentMonthPriority = ['июнь', 'июн', 'июнь25', 'июн25', 'май', 'май25'];
+    
+    for (const sheetName of workbook.SheetNames) {
+      const lowerSheetName = sheetName.toLowerCase();
+      for (const priorityMonth of currentMonthPriority) {
+        if (lowerSheetName.includes(priorityMonth)) {
+          const monthKey = priorityMonth.replace('25', '') as keyof typeof monthsMap;
+          const monthData = monthsMap[monthKey];
+          if (monthData) {
+            console.log(`🎯 ПРИОРИТЕТНЫЙ МЕСЯЦ: ${monthData.name} из листа ${sheetName}`);
+            return {
+              name: monthData.name,
+              shortName: monthData.short,
+              detectedFrom: 'sheet'
+            };
+          }
+        }
+      }
+    }
+
+    // Обычный поиск по всем месяцам
     for (const sheetName of workbook.SheetNames) {
       const lowerSheetName = sheetName.toLowerCase();
       for (const [key, value] of Object.entries(monthsMap)) {
@@ -213,14 +272,13 @@ export class ExcelProcessorImprovedV2 {
       return sheet;
     }
     
-    // Приоритет 1: Точное совпадение с текущим месяцем
+    // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Приоритет для самого свежего месяца
     const monthPatterns = [
+      'июнь25', 'июн25',           // Самый свежий месяц
       monthInfo.name.toLowerCase(),
       monthInfo.shortName.toLowerCase(),
       monthInfo.name.toLowerCase() + '25',
-      monthInfo.shortName.toLowerCase() + '25',
-      'июнь25', // Специально для данного файла
-      'июн25'
+      monthInfo.shortName.toLowerCase() + '25'
     ];
     
     let bestSheet = workbook.Sheets[sheetNames[0]];
@@ -295,73 +353,40 @@ export class ExcelProcessorImprovedV2 {
     }
   }
 
-  private analyzeAndExtractDataCorrectlyV2(rawData: any[][], monthInfo: MonthInfo, fileName: string): ProcessedData {
-    console.log('🔍 IMPROVED V2 EXTRACTION - Анализ структуры данных...');
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Новый метод анализа на основе структурного исследования
+  private analyzeAndExtractDataCriticalUpdateV2(rawData: any[][], monthInfo: MonthInfo, fileName: string): ProcessedData {
+    console.log('� КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ V2 - Анализ структуры данных на основе исследования...');
     
     const reviews: DataRow[] = [];
     const comments: DataRow[] = [];
     const discussions: DataRow[] = [];
     let totalViews = 0;
     
-    // ИСПРАВЛЕНО: Ищем заголовки в строке 4 (индекс 3), а не в первой строке
-    let headerRowIndex = 3; // По результатам анализа заголовки в строке 4
-    let columnMapping: { [key: string]: number } = {};
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заголовки ВСЕГДА в строке 4 (индекс 3)
+    const headerRowIndex = CONFIG.HEADERS.headerRow - 1; // Строка 4 = индекс 3
+    const startRow = CONFIG.HEADERS.dataStartRow - 1;    // Строка 5 = индекс 4
     
-    // Проверяем, что строка 4 действительно содержит заголовки
-    if (rawData.length > 3 && rawData[3]) {
-      const headerRow = rawData[3];
-      const hasHeaders = headerRow.some((cell: any) => 
-        cell && cell.toString().toLowerCase().includes('тип размещения')
-      );
-      
-      if (hasHeaders) {
-        console.log('✅ Найдены заголовки в строке 4');
-        headerRow.forEach((header: any, index: number) => {
-          if (header) {
-            const cleanHeader = header.toString().toLowerCase().trim();
-            columnMapping[cleanHeader] = index;
-          }
-        });
-        console.log('Найденные заголовки:', headerRow);
-        console.log('Маппинг колонок:', columnMapping);
-      } else {
-        console.warn('⚠️ Заголовки в строке 4 не найдены, ищем в других строках');
-        headerRowIndex = this.findHeaderRow(rawData);
-      }
+    console.log(`📋 КОНФИГУРАЦИЯ: заголовки в строке ${CONFIG.HEADERS.headerRow}, данные с строки ${CONFIG.HEADERS.dataStartRow}`);
+    
+    // Используем фиксированный маппинг колонок на основе анализа
+    const columnMapping = CONFIG.COLUMN_MAPPING;
+    
+    // Проверяем наличие заголовков в строке 4
+    if (rawData.length > headerRowIndex && rawData[headerRowIndex]) {
+      const headerRow = rawData[headerRowIndex];
+      console.log('📋 Заголовки в строке 4:', headerRow.slice(0, 15));
     }
     
-    // ИСПРАВЛЕНО: Используем точные позиции колонок на основе анализа
-    if (Object.keys(columnMapping).length === 0) {
-      console.warn('⚠️ Заголовки не найдены, используем фиксированные позиции на основе анализа');
-      columnMapping = {
-        'тип размещения': 0,     // Колонка 1 = индекс 0
-        'площадка': 1,           // Колонка 2 = индекс 1  
-        'продукт': 2,            // Колонка 3 = индекс 2
-        'ссылка на сообщение': 3, // Колонка 4 = индекс 3
-        'текст сообщения': 4,    // Колонка 5 = индекс 4
-        'согласование/комментарии': 5, // Колонка 6 = индекс 5
-        'дата': 6,               // Колонка 7 = индекс 6
-        'ник': 7,                // Колонка 8 = индекс 7
-        'автор': 8,              // Колонка 9 = индекс 8
-        'просмотры темы на старте': 10,     // Колонка 11 = индекс 10
-        'просмотры в конце месяца': 11,     // Колонка 12 = индекс 11 (ИСПРАВЛЕНО!)
-        'просмотров получено': 12,          // Колонка 13 = индекс 12
-        'вовлечение': 13,                   // Колонка 14 = индекс 13
-        'тип поста': 14                     // Колонка 15 = индекс 14
-      };
-    }
-    
-    const startRow = headerRowIndex + 1;
     console.log(`🔍 Начинаем обработку данных с строки ${startRow + 1}`);
     
     for (let i = startRow; i < rawData.length; i++) {
       const row = rawData[i];
       if (!row || row.length === 0) continue;
       
-      const rowType = this.analyzeRowTypeByStructureV2(row, columnMapping);
+      const rowType = this.analyzeRowTypeCriticalUpdateV2(row, columnMapping);
       
       if (rowType === 'review') {
-        const reviewData = this.extractReviewDataByStructureV2(row, columnMapping, i);
+        const reviewData = this.extractReviewDataCriticalUpdateV2(row, columnMapping, i);
         if (reviewData) {
           reviews.push(reviewData);
           if (typeof reviewData.просмотры === 'number') {
@@ -369,13 +394,13 @@ export class ExcelProcessorImprovedV2 {
           }
         }
       } else if (rowType === 'comment') {
-        const commentData = this.extractCommentDataByStructureV2(row, columnMapping, i);
+        const commentData = this.extractCommentDataCriticalUpdateV2(row, columnMapping, i);
         if (commentData) {
           // ИСПРАВЛЕНО: правильная логика разделения на комментарии и обсуждения
-          if (comments.length < 15) { // Первые 15 - комментарии
+          if (comments.length < CONFIG.EXPECTED_COUNTS.COMMENTS) { 
             commentData.section = 'comments';
             comments.push(commentData);
-          } else { // Остальные - активные обсуждения
+          } else { 
             commentData.section = 'discussions';
             discussions.push(commentData);
           }
@@ -387,7 +412,8 @@ export class ExcelProcessorImprovedV2 {
       }
     }
     
-    console.log(`📊 ИЗВЛЕЧЕНО V2: ${reviews.length} отзывов, ${comments.length} комментариев, ${discussions.length} обсуждений`);
+    console.log(`📊 КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ РЕЗУЛЬТАТ: ${reviews.length} отзывов, ${comments.length} комментариев, ${discussions.length} обсуждений`);
+    console.log(`🎯 ОЖИДАЕМЫЕ ЗНАЧЕНИЯ: ${CONFIG.EXPECTED_COUNTS.REVIEWS} отзывов, ${CONFIG.EXPECTED_COUNTS.COMMENTS} комментариев, ${CONFIG.EXPECTED_COUNTS.DISCUSSIONS} обсуждений`);
     
     return {
       reviews,
@@ -399,24 +425,8 @@ export class ExcelProcessorImprovedV2 {
     };
   }
 
-  private findHeaderRow(rawData: any[][]): number {
-    // Ищем строку с заголовками в первых 10 строках
-    for (let i = 0; i < Math.min(10, rawData.length); i++) {
-      const row = rawData[i];
-      if (row && Array.isArray(row)) {
-        const rowStr = row.map(cell => (cell || '').toString().toLowerCase()).join(' ');
-        if (rowStr.includes('тип размещения') || rowStr.includes('площадка') || rowStr.includes('текст сообщения')) {
-          console.log(`✅ Найдена строка заголовков: ${i + 1}`);
-          return i;
-        }
-      }
-    }
-    
-    console.warn('⚠️ Строка заголовков не найдена, используем строку 4 по умолчанию');
-    return 3; // По умолчанию строка 4 (индекс 3)
-  }
-
-  private analyzeRowTypeByStructureV2(row: any[], columnMapping: { [key: string]: number }): string {
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Новый метод анализа типов строк
+  private analyzeRowTypeCriticalUpdateV2(row: any[], columnMapping: { [key: string]: number }): string {
     const typeColumn = columnMapping['тип размещения'] || 0;
     const postTypeColumn = columnMapping['тип поста'] || 14;
     const textColumn = columnMapping['текст сообщения'] || 4;
@@ -429,7 +439,9 @@ export class ExcelProcessorImprovedV2 {
     
     if (!textValue && !platformValue) return 'empty';
     
-    // ИСПРАВЛЕНО: более точная логика определения типов на основе анализа
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: более точная логика определения типов на основе анализа
+    
+    // Проверяем тип поста (колонка O)
     if (postTypeValue === 'ос' || postTypeValue === 'основное сообщение') {
       return 'review';
     }
@@ -438,13 +450,21 @@ export class ExcelProcessorImprovedV2 {
       return 'comment';  
     }
     
-    // Проверяем по типу размещения
-    if (typeValue.includes('отзывы (отзовики)') || typeValue.includes('отзыв на товар')) {
-      return 'review';
+    if (postTypeValue === 'пс' || postTypeValue === 'площадка социальная') {
+      return 'comment';
     }
     
-    if (typeValue.includes('комментарии') || typeValue.includes('обсуждениях')) {
-      return 'comment';
+    // Проверяем тип размещения (колонка A)
+    for (const reviewType of CONFIG.CONTENT_TYPES.REVIEWS) {
+      if (typeValue.includes(reviewType.toLowerCase())) {
+        return 'review';
+      }
+    }
+    
+    for (const commentType of CONFIG.CONTENT_TYPES.COMMENTS) {
+      if (typeValue.includes(commentType.toLowerCase())) {
+        return 'comment';
+      }
     }
     
     // Если есть длинный текст, скорее всего это комментарий
@@ -455,7 +475,8 @@ export class ExcelProcessorImprovedV2 {
     return 'empty';
   }
 
-  private extractReviewDataByStructureV2(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Новый метод извлечения отзывов
+  private extractReviewDataCriticalUpdateV2(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
@@ -481,7 +502,7 @@ export class ExcelProcessorImprovedV2 {
         текст,
         дата: this.extractDateByStructure(row, dateColumn),
         ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
-        просмотры: this.extractViewsByStructureV2(row, viewsColumn1, viewsColumn2),
+        просмотры: this.extractViewsByStructureCriticalUpdateV2(row, viewsColumn1, viewsColumn2),
         вовлечение: this.extractEngagementByStructure(row, engagementColumn),
         типПоста: 'ОС',
         section: 'reviews',
@@ -493,7 +514,8 @@ export class ExcelProcessorImprovedV2 {
     }
   }
 
-  private extractCommentDataByStructureV2(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Новый метод извлечения комментариев
+  private extractCommentDataCriticalUpdateV2(row: any[], columnMapping: { [key: string]: number }, index: number): DataRow | null {
     try {
       const platformColumn = columnMapping['площадка'] || 1;
       const textColumn = columnMapping['текст сообщения'] || 4;
@@ -501,15 +523,16 @@ export class ExcelProcessorImprovedV2 {
       const dateColumn = columnMapping['дата'] || 6;
       const nickColumn = columnMapping['ник'] || 7;
       const authorColumn = columnMapping['автор'] || 8;
-      const viewsColumn1 = columnMapping['просмотры в конце месяца'] || 11; // ИСПРАВЛЕНО!
+      const viewsColumn1 = columnMapping['просмотры в конце месяца'] || 11;
       const viewsColumn2 = columnMapping['просмотров получено'] || 12;
       const engagementColumn = columnMapping['вовлечение'] || 13;
+      const postTypeColumn = columnMapping['тип поста'] || 14;
       
       const площадка = this.getCleanValue(row[platformColumn]);
       const текст = this.getCleanValue(row[textColumn]);
+      const постТип = this.getCleanValue(row[postTypeColumn]);
       
       if (!площадка && !текст) return null;
-      if (текст.length < 10) return null;
       
       const тема = this.extractTheme(текст);
       
@@ -519,9 +542,9 @@ export class ExcelProcessorImprovedV2 {
         текст,
         дата: this.extractDateByStructure(row, dateColumn),
         ник: this.extractAuthorByStructure(row, nickColumn, authorColumn),
-        просмотры: this.extractViewsByStructureV2(row, viewsColumn1, viewsColumn2),
+        просмотры: this.extractViewsByStructureCriticalUpdateV2(row, viewsColumn1, viewsColumn2),
         вовлечение: this.extractEngagementByStructure(row, engagementColumn),
-        типПоста: 'ЦС',
+        типПоста: постТип.toUpperCase() || 'ЦС',
         section: 'comments',
         originalRow: row
       };
@@ -573,22 +596,28 @@ export class ExcelProcessorImprovedV2 {
     return nick || author || '';
   }
 
-  private extractViewsByStructureV2(row: any[], viewsColumn1: number, viewsColumn2: number): number | string {
-    // ИСПРАВЛЕНО: Проверяем обе колонки с просмотрами
-    const views1 = row[viewsColumn1];
-    const views2 = row[viewsColumn2];
-    
-    // Сначала пробуем "просмотров получено"
-    if (views2 && typeof views2 === 'number' && views2 > 0) {
-      return Math.round(views2);
+  // КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ: Исправленный метод извлечения просмотров
+  private extractViewsByStructureCriticalUpdateV2(row: any[], viewsColumn1: number, viewsColumn2: number): number | string {
+    try {
+      // Приоритет: колонка L (просмотры в конце месяца)
+      const views1 = this.getCleanValue(row[viewsColumn1]);
+      if (views1 && !isNaN(Number(views1))) {
+        const numViews = Number(views1);
+        if (numViews > 0) return numViews;
+      }
+      
+      // Запасной вариант: колонка M (просмотров получено)
+      const views2 = this.getCleanValue(row[viewsColumn2]);
+      if (views2 && !isNaN(Number(views2))) {
+        const numViews = Number(views2);
+        if (numViews > 0) return numViews;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.warn('⚠️ Ошибка извлечения просмотров:', error);
+      return 0;
     }
-    
-    // Потом "просмотры в конце месяца"
-    if (views1 && typeof views1 === 'number' && views1 > 0) {
-      return Math.round(views1);
-    }
-    
-    return 'Нет данных';
   }
 
   private extractEngagementByStructure(row: any[], engagementColumn: number): string {
