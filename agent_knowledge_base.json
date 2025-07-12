@@ -1,0 +1,135 @@
+{
+  "projectInfo": {
+    "name": "ExcelEngineer",
+    "description": "Система автоматической обработки Excel/Google Sheets отчетов",
+    "mainGoal": "Тестирование Google Apps Script процессора для достижения 95%+ точности",
+    "agentId": "bc-be5df7e8-043a-4363-8fb5-572b1eb8c17c"
+  },
+  
+  "googleAppsScript": {
+    "mainProcessor": "google-apps-script-processor-enhanced.js",
+    "testingFramework": "google-apps-script-testing.js",
+    "keyFeatures": {
+      "flexibleColumns": "Автоматическое определение колонок через CONFIG.COLUMNS",
+      "postTypeDetection": "Разделение на отзывы и комментарии через CONFIG.POST_TYPES",
+      "monthDetection": "Автоматическое определение месяца через detectMonth()",
+      "sectionDetection": "Разделение на секции через detectSection()",
+      "dataValidation": "Фильтрация и валидация данных"
+    },
+    "configColumns": {
+      "platform": ["площадка", "platform", "site", "платформа"],
+      "text": ["текст сообщения", "текст", "message", "content", "сообщение"],
+      "date": ["дата", "date", "created", "время"],
+      "author": ["автор", "ник", "author", "nickname", "пользователь"],
+      "views": ["просмотры", "просмотров получено", "views", "просмотров"],
+      "engagement": ["вовлечение", "engagement", "взаимодействие"],
+      "postType": ["тип поста", "тип размещения", "post_type", "тип"]
+    },
+    "postTypes": {
+      "review": ["ос", "основное сообщение", "review", "отзыв", "основной"],
+      "comment": ["цс", "целевое сообщение", "comment", "комментарий", "целевой"]
+    }
+  },
+  
+  "testingData": {
+    "sourceUrl": "https://docs.google.com/spreadsheets/d/1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI/edit?gid=1783011202#gid=1783011202",
+    "referenceUrl": "https://docs.google.com/spreadsheets/d/1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI/edit?gid=1783011202#gid=1783011202",
+    "monthsToTest": ["Февраль", "Март", "Апрель", "Май"],
+    "targetAccuracy": 95,
+    "keyMetrics": [
+      "Количество отзывов",
+      "Количество комментариев",
+      "Общие просмотры",
+      "Структура отчета"
+    ]
+  },
+  
+  "expectedOutput": {
+    "structure": [
+      "Заголовок с месяцем и годом",
+      "Статистика (отзывы, комментарии, просмотры)",
+      "Раздел ОТЗЫВЫ:",
+      "Раздел КОММЕНТАРИИ:"
+    ],
+    "format": "Excel файл с форматированием",
+    "validation": "Сравнение с эталонными данными"
+  },
+  
+  "commonIssues": [
+    {
+      "issue": "Колонки не найдены",
+      "solution": "Расширить маппинг колонок в CONFIG.COLUMNS"
+    },
+    {
+      "issue": "Неправильное определение типа поста",
+      "solution": "Добавить новые ключевые слова в CONFIG.POST_TYPES"
+    },
+    {
+      "issue": "Ошибка определения месяца",
+      "solution": "Улучшить логику в detectMonth()"
+    },
+    {
+      "issue": "Неправильное разделение секций",
+      "solution": "Уточнить логику в detectSection()"
+    }
+  ],
+  
+  "testingInstructions": {
+    "setup": [
+      "Создать новую Google Таблицу",
+      "Установить Google Apps Script",
+      "Скопировать код процессора",
+      "Добавить тестовый фреймворк"
+    ],
+    "execution": [
+      "Запустить testSingleMonth('Февраль')",
+      "Проверить результаты",
+      "Сравнить с эталоном",
+      "Исправить ошибки при необходимости"
+    ],
+    "validation": [
+      "Проверить количество отзывов",
+      "Проверить количество комментариев",
+      "Проверить общие просмотры",
+      "Проверить структуру отчета"
+    ]
+  },
+  
+  "iterativeProcess": {
+    "steps": [
+      "Запуск теста → Получение результатов",
+      "Анализ ошибок → Определение проблем",
+      "Корректировка кода → Внесение исправлений",
+      "Повторное тестирование → Проверка улучшений",
+      "Документирование → Запись изменений"
+    ],
+    "goal": "Достичь 95%+ совпадения для всех 4 месяцев"
+  },
+  
+  "missionCritical": {
+    "spreadsheetId": "1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI",
+    "structure": {
+      "sourceSheets": [
+        "Февраль 2025 - исходник",
+        "Март 2025 - исходник", 
+        "Апрель 2025 - исходник",
+        "Май 2025 - исходник"
+      ],
+      "referenceSheets": [
+        "Февраль 2025 - эталон",
+        "Март 2025 - эталон",
+        "Апрель 2025 - эталон", 
+        "Май 2025 - эталон"
+      ]
+    },
+    "requirements": {
+      "visualMatch": "Внешний вид должен полностью соответствовать эталону",
+      "dataMatch": "Данные в каждом столбце должны соответствовать эталону",
+      "statisticsMatch": "Итоговая статистика должна соответствовать эталону",
+      "completeness": "4 полных соответствия по каждому месяцу"
+    },
+    "autonomousMode": true,
+    "maxResources": true,
+    "fullPermissions": true
+  }
+} 

@@ -1,0 +1,59 @@
+{
+  "requests": [
+    {
+      "id": "req-001",
+      "type": "code_analysis",
+      "target": "google-apps-script-processor-enhanced.js",
+      "question": "Как работает определение колонок в CONFIG.COLUMNS?",
+      "status": "completed",
+      "priority": "high",
+      "createdAt": "2025-01-07T10:00:00Z"
+    },
+    {
+      "id": "req-002",
+      "type": "data_structure",
+      "target": "source_data",
+      "question": "Какая структура данных в исходных Google Sheets?",
+      "status": "completed",
+      "priority": "high",
+      "createdAt": "2025-01-07T10:00:00Z"
+    },
+    {
+      "id": "req-003",
+      "type": "testing_framework",
+      "target": "google-apps-script-testing.js",
+      "question": "Как использовать тестовый фреймворк для проверки результатов?",
+      "status": "completed",
+      "priority": "medium",
+      "createdAt": "2025-01-07T10:00:00Z"
+    }
+  ],
+  "responses": [
+    {
+      "requestId": "req-001",
+      "response": "{\n  \"description\": \"Google Apps Script процессор для обработки данных из таблиц\",\n  \"keyFeatures\": [\n    \"Определение колонок через CONFIG.COLUMNS\",\n    \"Разделение на отзывы и комментарии через CONFIG.POST_TYPES\",\n    \"Автоматическое определение месяца через detectMonth()\",\n    \"Разделение на секции через detectSection()\",\n    \"Фильтрация и валидация данных\"\n  ],\n  \"configColumns\": \"Не найдено\",\n  \"postTypes\": \"Не найдено\",\n  \"mainFunctions\": [\n    \"processMonthlyReport\",\n    \"quickProcess\",\n    \"processWithSheetSelection\",\n    \"updateMenu\",\n    \"showSettings\",\n    \"onOpen\"\n  ]\n}",
+      "respondedAt": "2025-07-12T16:01:58.465Z",
+      "status": "completed"
+    },
+    {
+      "requestId": "req-002",
+      "response": "{\n  \"sourceData\": {\n    \"url\": \"https://docs.google.com/spreadsheets/d/1z4KJfXSNaV8Zw5Qi4hKdVsoKvt9GTSrweWv45URzB4I/edit?gid=1258324199#gid=1258324199\",\n    \"description\": \"Исходные данные с листами по месяцам (февраль-май 2025)\",\n    \"structure\": [\n      \"Листы с названиями месяцев\",\n      \"Колонки с отзывами и комментариями\",\n      \"Данные о просмотрах и датах\",\n      \"Информация о платформах\"\n    ]\n  },\n  \"referenceData\": {\n    \"url\": \"https://docs.google.com/spreadsheets/d/18jkeKNIn5QJpzQrDN3RAT3mEYRXlSNKOnNvA3pxoBx8/edit?gid=535445992#gid=535445992\",\n    \"description\": \"Эталонные результаты для сравнения\",\n    \"expectedFormat\": [\n      \"Заголовок с месяцем и годом\",\n      \"Статистика (отзывы, комментарии, просмотры)\",\n      \"Раздел \\\"ОТЗЫВЫ:\\\"\",\n      \"Раздел \\\"КОММЕНТАРИИ:\\\"\"\n    ]\n  }\n}",
+      "respondedAt": "2025-07-12T16:01:58.468Z",
+      "status": "completed"
+    },
+    {
+      "requestId": "req-003",
+      "response": "{\n  \"description\": \"Тестовый фреймворк для проверки работы процессора\",\n  \"testFunctions\": [\n    \"testSingleMonth() - тестирование одного месяца\",\n    \"runFullTesting() - полное тестирование всех месяцев\",\n    \"compareResults() - сравнение с эталонными данными\",\n    \"validateStructure() - проверка структуры отчета\"\n  ],\n  \"usage\": \"Запустить testSingleMonth(\\\"Февраль\\\") для тестирования февраля\"\n}",
+      "respondedAt": "2025-07-12T16:01:58.471Z",
+      "status": "completed"
+    }
+  ],
+  "requestTypes": [
+    "code_analysis",
+    "data_structure",
+    "testing_framework",
+    "error_debugging",
+    "performance_optimization",
+    "configuration_help"
+  ]
+}

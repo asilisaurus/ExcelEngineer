@@ -25,22 +25,6 @@ const CONFIG = {
     SOCIAL: ['ПС', 'Площадки Социальные', 'пс', 'площадки социальные']
   },
   
-  // Настройки колонок (гибкие)
-  COLUMNS: {
-    PLATFORM: ['площадка', 'platform', 'site', 'платформа', 'источник'],
-    TEXT: ['текст сообщения', 'текст', 'message', 'content', 'сообщение', 'описание'],
-    DATE: ['дата', 'date', 'created', 'время', 'дата создания'],
-    AUTHOR: ['автор', 'ник', 'author', 'nickname', 'пользователь', 'имя'],
-    VIEWS: ['просмотры', 'просмотров получено', 'views', 'просмотров', 'количество просмотров'],
-    ENGAGEMENT: ['вовлечение', 'engagement', 'взаимодействие'],
-    POST_TYPE: ['тип поста', 'тип размещения', 'post_type', 'тип', 'категория'],
-    
-    // Дополнительные колонки
-    THEME: ['тема', 'theme', 'subject', 'заголовок'],
-    LINK: ['ссылка', 'link', 'url', 'адрес'],
-    RATING: ['оценка', 'rating', 'рейтинг', 'звезды']
-  },
-  
   // Настройки форматирования
   FORMATTING: {
     DATE_FORMAT: 'dd.mm.yyyy',
@@ -134,29 +118,6 @@ class FinalMonthlyReportProcessor {
     }
   }
 
-/**
- * Получение исходных данных из Google Sheets
- */
-function getSourceData() {
-  // Замените на ID вашего Google Sheets
-  const SHEET_ID = 'YOUR_SHEET_ID_HERE';
-  
-  try {
-    const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
-    const sheets = spreadsheet.getSheets();
-    
-    // Автоматический поиск листа с текущим месяцем
-    const targetSheet = findCurrentMonthSheet(sheets);
-    
-    if (!targetSheet) {
-      throw new Error('Не найден лист для текущего месяца');
-    }
-    
-    console.log(`📋 Используется лист: ${targetSheet.getName()}`);
-    
-    // Получаем все данные листа
-    const range = targetSheet.getDataRange();
-    const values = range.getValues();
   /**
    * Получение исходных данных (ОБНОВЛЕНО НА ОСНОВЕ АНАЛИЗА)
    */
@@ -190,6 +151,7 @@ function getSourceData() {
         return { ...monthFromSheet, detectedFrom: 'sheet' };
       }
     }
+    
     // 2. Пробуем определить месяц из имени активного листа
     try {
       const activeSheet = SpreadsheetApp.getActiveSheet();
@@ -204,6 +166,7 @@ function getSourceData() {
     } catch (error) {
       console.warn('⚠️ Не удалось получить название активного листа:', error.message);
     }
+    
     // 3. Если не найдено — ищем в мета-информации (строки 1-3)
     for (let i = 0; i < Math.min(3, data.length); i++) {
       const rowText = data[i].join(' ').toLowerCase();
@@ -213,6 +176,7 @@ function getSourceData() {
         return { ...monthFromMeta, detectedFrom: 'meta' };
       }
     }
+    
     // 4. По умолчанию — текущий месяц
     const now = new Date();
     return {
@@ -231,232 +195,39 @@ function getSourceData() {
     // Восстановленный фиксированный маппинг колонок для всех месяцев
     this.columnMapping = this.getColumnMapping();
     
-    console.log(`📊 Загружено ${values.length} строк из листа ${targetSheet.getName()}`);
+    console.log(`🗺️ Маппинг колонок:`, this.columnMapping);
     
-    return values;
+    // ИСПРАВЛЕНИЕ: Ищем общие просмотры в исходных данных
+    let totalViewsFromSource = 0;
     
-  } catch (error) {
-    console.error('❌ Ошибка при получении данных:', error);
-    throw error;
-  }
-}
-
-/**
- * Поиск листа с текущим месяцем
- */
-function findCurrentMonthSheet(sheets) {
-  const currentMonth = new Date().getMonth();
-  const monthNames = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 
-                     'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  
-  // Сначала ищем точное совпадение
-  for (let sheet of sheets) {
-    const sheetName = sheet.getName().toLowerCase();
-    if (sheetName.includes(monthNames[currentMonth])) {
-      return sheet;
-    }
-  }
-  
-  // Если не найдено, берем первый лист
-  return sheets[0];
-}
-
-/**
- * Основная обработка данных
- */
-function processData(rawData) {
-  if (!rawData || rawData.length === 0) {
-    throw new Error('Нет данных для обработки');
-  }
-  
-  // 1. Поиск заголовков
-  const headerInfo = findHeaders(rawData);
-  console.log(`🔍 Найдена строка заголовков: ${headerInfo.row}`);
-  
-  // 2. Извлечение данных
-  const dataRows = rawData.slice(headerInfo.row + 1);
-  
-  // 3. Обработка строк
-  const processedRows = [];
-  
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    
-    // Пропускаем пустые строки
-    if (isEmptyRow(row)) continue;
-    
-    // Пропускаем строки-заголовки
-    if (isHeaderRow(row)) {
-      console.log(`⏭️ Пропущена строка-заголовок: ${row[0]}`);
-      continue;
-    }
-    
-    // Определяем тип контента
-    const contentType = determineContentType(row);
-    
-    if (contentType === 'review' || contentType === 'comment') {
-      const processedRow = extractRowData(row, contentType, headerInfo.mapping);
-      if (processedRow) {
-        processedRows.push(processedRow);
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const firstCell = String(row[0] || '').toLowerCase().trim();
+      
+      // Ищем строку с общими просмотрами
+      if (firstCell.includes('суммарное количество просмотров')) {
+        // Ищем число в этой строке
+        for (let j = 1; j < row.length; j++) {
+          const cellValue = String(row[j] || '').replace(/[^\d]/g, '');
+          if (cellValue && cellValue.length > 3) {
+            totalViewsFromSource = parseInt(cellValue);
+            console.log(`📊 Найдены общие просмотры в исходных данных: ${totalViewsFromSource}`);
+            break;
+          }
+        }
+        break;
       }
     }
-  }
-  
-  // 4. Группировка по типам
-  const reviews = processedRows.filter(row => row.type === 'review');
-  const comments = processedRows.filter(row => row.type === 'comment');
-  
-  console.log(`📊 Найдено отзывов: ${reviews.length}, комментариев: ${comments.length}`);
-  
-  return processedRows;
-}
-
-/**
- * Поиск строки заголовков
- */
-function findHeaders(data) {
-  const columnMapping = {};
-  
-  for (let i = 0; i < Math.min(10, data.length); i++) {
-    const row = data[i];
-    const rowStr = row.map(cell => (cell || '').toString().toLowerCase()).join(' ');
     
-    if (rowStr.includes('тип размещения') || 
-        rowStr.includes('площадка') || 
-        rowStr.includes('текст сообщения')) {
-      
-      // Создаем маппинг колонок
-      row.forEach((cell, index) => {
-        const cleanHeader = (cell || '').toString().toLowerCase().trim();
-        if (cleanHeader) {
-          columnMapping[cleanHeader] = index;
-        }
-      });
-      
-      return {
-        row: i,
-        mapping: columnMapping
-      };
-    }
-  }
-  
-  // Если заголовки не найдены, используем стандартный маппинг
-  return {
-    row: 0,
-    mapping: getDefaultMapping()
-  };
-}
-
-/**
- * Стандартный маппинг колонок для Google Sheets
- */
-function getDefaultMapping() {
-  return {
-    'тип размещения': 0,
-    'площадка': 1,
-    'продукт': 2,
-    'ссылка на сообщение': 3,
-    'текст сообщения': 4,
-    'согласование/комментарии': 5,
-    'дата': 6,
-    'ник': 7,
-    'автор': 8,
-    'просмотры темы на старте': 9,
-    'просмотры в конце месяца': 10,
-    'просмотров получено': 11,
-    'вовлечение': 12,
-    'тип поста': 13
-  };
-}
-
-/**
- * Определение типа контента
- */
-function determineContentType(row) {
-  // Проверяем последнюю колонку (тип поста)
-  const lastColIndex = row.length - 1;
-  const lastColValue = (row[lastColIndex] || '').toString().toLowerCase().trim();
-  
-  if (lastColValue === 'ос' || lastColValue === 'основное сообщение') {
-    return 'review';
-  }
-  
-  if (lastColValue === 'цс' || lastColValue === 'целевое сообщение') {
-    return 'comment';
-  }
-  
-  // Дополнительная проверка по первой колонке
-  const firstColValue = (row[0] || '').toString().toLowerCase().trim();
-  if (firstColValue.includes('отзыв') || firstColValue.includes('ос')) {
-    return 'review';
-  }
-  
-  if (firstColValue.includes('комментарий') || firstColValue.includes('цс')) {
-    return 'comment';
-  }
-  
-  return 'unknown';
-}
-
-/**
- * Проверка, является ли строка заголовком
- */
-function isHeaderRow(row) {
-  const firstCell = (row[0] || '').toString().toLowerCase().trim();
-  const headerPatterns = ['отзывы', 'комментарии', 'обсуждения'];
-  
-  return headerPatterns.includes(firstCell);
-}
-
-/**
- * Проверка, является ли строка пустой
- */
-function isEmptyRow(row) {
-  return !row || row.every(cell => !cell || cell.toString().trim() === '');
-}
-
-/**
- * Извлечение данных из строки
- */
-function extractRowData(row, type, mapping) {
-  try {
-    // Индексы колонок (с fallback на стандартные позиции)
-    const siteIndex = mapping['площадка'] || 1;
-    const linkIndex = mapping['ссылка на сообщение'] || 3;
-    const textIndex = mapping['текст сообщения'] || 4;
-    const dateIndex = mapping['дата'] || 6;
-    const authorIndex = mapping['автор'] || 8;
-    const viewsIndex = mapping['просмотров получено'] || 11;
-    const engagementIndex = mapping['вовлечение'] || 12;
-    
-    // Извлекаем данные
-    const site = cleanValue(row[siteIndex]);
-    const link = cleanValue(row[linkIndex]);
-    const text = cleanValue(row[textIndex]);
-    const date = cleanValue(row[dateIndex]);
-    const author = cleanValue(row[authorIndex]);
-    const views = extractViews(row[viewsIndex]);
-    const engagement = extractEngagement(row[engagementIndex]);
-    
-    // Валидация обязательных полей
-    if (!site || !text) {
-      return null;
-    }
+    // Сохраняем найденные общие просмотры
+    this.stats.totalViewsFromSource = totalViewsFromSource;
     
     return {
-      type: type,
-      site: site,
-      link: link,
-      text: text,
-      date: date,
-      author: author,
-      views: views,
-      engagement: engagement
+      columnMapping: this.columnMapping,
+      totalViewsFromSource: totalViewsFromSource
     };
-    
-  } catch (error) {
-    console.error('❌ Ошибка при извлечении данных строки:', error);
-    return null;
+  }
+
   /**
    * Обработка данных (ИСПРАВЛЕНО НА ОСНОВЕ АНАЛИЗА)
    */
@@ -482,17 +253,12 @@ function extractRowData(row, type, mapping) {
     const columnMapping = this.getColumnMapping();
     
     // ИСПРАВЛЕНИЕ: Правильное определение разделов и их границ
-    let currentSection = null;
-    let sectionStartRow = -1;
-    let sectionEndRow = -1;
-    
-    // Сначала находим все разделы и их границы
     const sections = this.findSectionBoundaries(data);
     console.log('📂 Найденные разделы:', sections);
     
     // Обрабатываем каждый раздел отдельно
     for (const section of sections) {
-      currentSection = section.type;
+      const currentSection = section.type;
       console.log(`🔄 Обработка раздела "${section.name}" (строки ${section.startRow + 1}-${section.endRow + 1})`);
       
       // Обрабатываем строки в пределах раздела
@@ -543,107 +309,20 @@ function extractRowData(row, type, mapping) {
     this.stats.reviewsCount = processedData.statistics.totalReviews;
     this.stats.commentsTop20Count = processedData.statistics.totalCommentsTop20;
     this.stats.activeDiscussionsCount = processedData.statistics.totalActiveDiscussions;
-    this.stats.totalViews = processedData.statistics.totalViews;
+    
+    // ИСПРАВЛЕНИЕ: Используем общие просмотры из исходных данных, если они есть
+    if (this.stats.totalViewsFromSource && this.stats.totalViewsFromSource > 0) {
+      this.stats.totalViews = this.stats.totalViewsFromSource;
+      console.log(`📊 Общие просмотры: ${this.stats.totalViews} (из исходных данных)`);
+    } else {
+      this.stats.totalViews = processedData.statistics.totalViews;
+      console.log(`📊 Общие просмотры: ${this.stats.totalViews} (подсчитано)`);
+    }
     
     console.log(`📊 Обработано: ${processedRows} строк данных, пропущено: ${skippedRows} строк`);
     console.log(`📊 Результат: ${processedData.statistics.totalReviews} отзывов, ${processedData.statistics.totalCommentsTop20} топ-20, ${processedData.statistics.totalActiveDiscussions} обсуждений`);
     
     return processedData;
-  }
-
-  /**
-   * Определение типа контента (ИСПРАВЛЕНО НА ОСНОВЕ РЕАЛЬНЫХ ДАННЫХ)
-   */
-  detectContentType(row) {
-    if (row.length === 0) return null;
-    
-    // ИСПРАВЛЕНИЕ: Ищем тип в колонке "Тип поста" (индекс 13)
-    const postTypeIndex = 13; // Колонка N - "Тип поста" (индекс 13)
-    let postType = '';
-    
-    if (row.length > postTypeIndex) {
-      postType = String(row[postTypeIndex] || '').toLowerCase().trim();
-    }
-    
-    // Если не найден в колонке "Тип поста", проверяем последнюю колонку
-    if (!postType) {
-      const lastColumnIndex = row.length - 1;
-      postType = String(row[lastColumnIndex] || '').toLowerCase().trim();
-    }
-    
-    // Удаляем избыточные логи (оставляем только для ошибок)
-    if (postType) {
-      if (CONFIG.CONTENT_TYPES.REVIEWS.some(type => postType.includes(type))) {
-        return 'reviews';
-      }
-      if (CONFIG.CONTENT_TYPES.TARGETED.some(type => postType.includes(type))) {
-        return 'targeted';
-      }
-      if (CONFIG.CONTENT_TYPES.SOCIAL.some(type => postType.includes(type))) {
-        return 'social';
-      }
-    }
-    
-    // Альтернативная проверка по тексту (если тип не найден)
-    const columnMapping = this.getColumnMapping();
-    const textIndex = columnMapping.text; // Колонка E - "Текст сообщения" (индекс 4)
-    if (textIndex !== undefined && row[textIndex]) {
-      const text = String(row[textIndex]).toLowerCase();
-      if (text.includes('отзыв') || text.includes('review')) {
-        return 'reviews';
-      }
-      if (text.includes('целевой') || text.includes('target')) {
-        return 'targeted';
-      }
-      if (text.includes('социальн') || text.includes('social')) {
-        return 'social';
-      }
-    }
-    
-    // Можно оставить только для редкой диагностики
-    // console.log(`❌ Тип контента не определен для строки`);
-    return null;
-  }
-
-  /**
-   * Проверка на пустую строку
-   */
-  isEmptyRow(row) {
-    return !row || row.every(cell => !cell || String(cell).trim() === '');
-  }
-
-  /**
-   * Проверка на строку с данными (ИСПРАВЛЕНО)
-   */
-  isDataRow(row) {
-    if (row.length < 5) return false; // Минимум 5 колонок для данных
-    
-    // ИСПРАВЛЕНИЕ: Пропускаем строки-заголовки секций
-    const firstCell = String(row[0] || '').toLowerCase().trim();
-    if (firstCell === 'отзывы' || firstCell === 'комментарии' || firstCell === 'обсуждения') {
-      console.log(`⏭️ Пропускаем заголовок секции: "${firstCell}"`);
-      return false;
-    }
-    
-    // ИСПРАВЛЕНИЕ: Получаем columnMapping в контексте метода
-    const columnMapping = this.getColumnMapping();
-    
-    // ИСПРАВЛЕНИЕ: Проверяем наличие значимого текста в колонке E (индекс 4) - "Текст сообщения"
-    const textIndex = columnMapping.text; // Колонка E - "Текст сообщения" (индекс 4)
-    const text = row[textIndex];
-    
-    if (text && String(text).trim().length > 10) {
-      return true;
-    }
-    
-    // Альтернативная проверка: наличие платформы и даты
-    const platformIndex = columnMapping.platform; // Колонка B - "Площадка" (индекс 1)
-    const dateIndex = columnMapping.date; // Колонка G - "Дата" (индекс 6)
-    
-    const hasPlatform = row[platformIndex] && String(row[platformIndex]).trim().length > 0;
-    const hasDate = row[dateIndex] && String(row[dateIndex]).trim().length > 0;
-    
-    return hasPlatform && hasDate;
   }
 
   /**
@@ -770,76 +449,6 @@ function extractRowData(row, type, mapping) {
     }
     return '';
   }
-}
-
-/**
- * Очистка значения ячейки
- */
-function cleanValue(value) {
-  if (!value) return '';
-  return value.toString().trim();
-}
-
-/**
- * Извлечение просмотров
- */
-function extractViews(value) {
-  if (!value) return 0;
-  
-  const str = value.toString().replace(/\D/g, '');
-  const num = parseInt(str);
-  
-  return isNaN(num) ? 0 : num;
-}
-
-/**
- * Извлечение вовлечения
- */
-function extractEngagement(value) {
-  if (!value) return 0;
-  
-  const str = value.toString().replace(/[^\d.]/g, '');
-  const num = parseFloat(str);
-  
-  return isNaN(num) ? 0 : num;
-}
-
-/**
- * Создание результирующего файла
- */
-function createResultFile(processedData) {
-  try {
-    // Создаем новый спредшит
-    const currentDate = new Date();
-    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-    
-    const fileName = `Результат_${monthNames[currentDate.getMonth()]}_${currentDate.getFullYear()}`;
-    const spreadsheet = SpreadsheetApp.create(fileName);
-    
-    // Получаем активный лист
-    const sheet = spreadsheet.getActiveSheet();
-    sheet.setName('Результаты');
-    
-    // Заголовки
-    const headers = ['Тип', 'Площадка', 'Ссылка', 'Текст', 'Дата', 'Автор', 'Просмотры', 'Вовлечение'];
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    
-    // Данные
-    const dataForSheet = processedData.map(row => [
-      row.type === 'review' ? 'Отзыв' : 'Комментарий',
-      row.site,
-      row.link,
-      row.text,
-      row.date,
-      row.author,
-      row.views,
-      row.engagement
-    ]);
-    
-    if (dataForSheet.length > 0) {
-      sheet.getRange(2, 1, dataForSheet.length, headers.length).setValues(dataForSheet);
-    }
 
   /**
    * Извлечение даты (ИСПРАВЛЕНО)
@@ -910,35 +519,6 @@ function createResultFile(processedData) {
   }
 
   /**
-   * Определение типа поста (ИСПРАВЛЕНО)
-   */
-  determinePostType(row, text, postType, columnMapping) {
-    // Проверяем колонку "Тип поста" (колонка N - индекс 13)
-    const postTypeIndex = columnMapping.postType;
-    if (postTypeIndex !== undefined && row[postTypeIndex]) {
-      const type = String(row[postTypeIndex]).trim().toLowerCase();
-      if (type === 'ос' || type === 'о.с.') {
-        return 'ОС';
-      } else if (type === 'цс' || type === 'ц.с.') {
-        return 'ЦС';
-      }
-    }
-
-    // Альтернативная проверка по тексту (если тип не найден)
-    const textIndex = columnMapping.text; // Колонка E - "Текст сообщения" (индекс 4)
-    if (textIndex !== undefined && row[textIndex]) {
-      const text = String(row[textIndex]).toLowerCase();
-      if (text.includes('отзыв') || text.includes('рекомендую') || text.includes('покупала')) {
-        return 'ОС';
-      } else if (text.includes('комментарий') || text.includes('ответ') || text.includes('обсуждение')) {
-        return 'ЦС';
-      }
-    }
-
-    return 'ОС'; // По умолчанию
-  }
-
-  /**
    * Извлечение темы
    */
   extractTheme(row, columnMapping) {
@@ -953,7 +533,8 @@ function createResultFile(processedData) {
    * Извлечение ссылки
    */
   extractLink(row, columnMapping) {
-    const index = columnMapping.link;
+    // ИСПРАВЛЕНИЕ: Используем theme колонку для ссылок
+    const index = columnMapping.theme;
     if (index !== undefined && row[index]) {
       return String(row[index]).trim();
     }
@@ -961,109 +542,134 @@ function createResultFile(processedData) {
   }
 
   /**
-   * Создание отчета (ИСПРАВЛЕНО)
-   * @param {Object} processedData - обработанные данные
+   * Создание отчета (ИСПРАВЛЕНО С ПРАВИЛЬНЫМ ФОРМАТИРОВАНИЕМ)
    */
   createReport(processedData) {
-    // Создаем временную таблицу и лист с нужным именем
-    const tempSpreadsheet = SpreadsheetApp.create(`temp_google_sheets_${Date.now()}_${this.monthInfo.name}_${this.monthInfo.year}_результат`);
-    const reportSheetName = `${this.monthInfo.name}_${this.monthInfo.year}`;
-    const sheet = tempSpreadsheet.getActiveSheet();
-    sheet.setName(reportSheetName);
-    
-    // Шапка: Продукт, Период, План
-    sheet.getRange('A1').setValue('Продукт');
-    sheet.getRange('B1').setValue('Акрихин - Фортедетрим');
-    sheet.getRange('A2').setValue('Период');
-    sheet.getRange('B2').setValue(`${this.monthInfo.name}-25`);
-    sheet.getRange('A3').setValue('План');
-    
-    // 2. Заголовки таблицы
-    const tableHeaders = ['Площадка', 'Тема', 'Текст сообщения', 'Дата', 'Ник', 'Просмотры', 'Вовлечение', 'Тип поста'];
-    let row = 5;
-    sheet.getRange(row, 1, 1, tableHeaders.length).setValues([tableHeaders]);
-    sheet.getRange(row, 1, 1, tableHeaders.length).setFontWeight('bold').setBackground('#3f2355').setFontColor('white');
-    row++;
-    
-    // 3. Разделы и данные
-    function writeSection(sectionName, dataArr) {
-      sheet.getRange(row, 1).setValue(sectionName);
-      sheet.getRange(row, 1, 1, tableHeaders.length).setBackground('#b7a6c9').setFontWeight('bold');
+    try {
+      // Создаем временную таблицу и лист с нужным именем
+      const tempSpreadsheet = SpreadsheetApp.create(`temp_google_sheets_${Date.now()}_${this.monthInfo.name}_${this.monthInfo.year}_результат`);
+      const reportSheetName = `${this.monthInfo.name}_${this.monthInfo.year}`;
+      const sheet = tempSpreadsheet.getActiveSheet();
+      sheet.setName(reportSheetName);
+      
+      // 1. Шапка: Продукт, Период, План (КАК В ЭТАЛОНЕ)
+      sheet.getRange('A1').setValue('Продукт');
+      sheet.getRange('B1').setValue('Акрихин - Фортедетрим');
+      sheet.getRange('C1').setValue(''); // Пустая колонка как в эталоне
+      
+      sheet.getRange('A2').setValue('Период'); 
+      sheet.getRange('B2').setValue(`${this.monthInfo.name}-25`);
+      sheet.getRange('C2').setValue(''); // Пустая колонка как в эталоне
+      
+      sheet.getRange('A3').setValue('План');
+      sheet.getRange('B3').setValue(''); // Пустая как в эталоне
+      sheet.getRange('C3').setValue(''); // Пустая колонка как в эталоне
+      
+      // 2. Пустая строка 4
+      let row = 5;
+      
+      // 3. Заголовки таблицы (ТОЧНО КАК В ЭТАЛОНЕ)
+      const tableHeaders = ['Площадка', 'Тема', 'Текст сообщения', 'Дата', 'Ник', 'Просмотры', 'Вовлечение', 'Тип поста'];
+      sheet.getRange(row, 1, 1, tableHeaders.length).setValues([tableHeaders]);
+      
+      // ✅ ИСПРАВЛЕНИЕ: Применяем правильные цвета как в эталоне
+      sheet.getRange(row, 1, 1, tableHeaders.length)
+        .setFontWeight('bold')
+        .setBackground('#9fc5e8') // Голубой как в эталоне
+        .setFontColor('black')
+        .setBorder(true, true, true, true, true, true);
       row++;
-      if (dataArr.length) {
-        // ИСПРАВЛЕНИЕ: Правильное отображение типа поста
-        const safeData = dataArr.map(r => {
-          const arr = [r.platform, r.theme, r.text, r.date, r.author, r.views, r.engagement, r.type];
-          while (arr.length < tableHeaders.length) arr.push('');
-          return arr.slice(0, tableHeaders.length);
-        });
-        sheet.getRange(row, 1, safeData.length, tableHeaders.length).setValues(safeData);
-        row += safeData.length;
-      }
-      console.log(`📂 Раздел "${sectionName}": ${dataArr.length} строк`);
+      
+      // 4. Разделы и данные с правильным форматированием
+      const writeSection = (sectionName, dataArr) => {
+        // Заголовок раздела с фиолетовым фоном как в эталоне
+        sheet.getRange(row, 1).setValue(sectionName);
+        sheet.getRange(row, 1, 1, tableHeaders.length)
+          .setBackground('#b4a7d6') // Фиолетовый как в эталоне
+          .setFontWeight('bold')
+          .setFontColor('black')
+          .setBorder(true, true, true, true, true, true);
+        row++;
+        
+        if (dataArr.length) {
+          // ИСПРАВЛЕНИЕ: Правильное отображение данных
+          const safeData = dataArr.map(r => {
+            const arr = [
+              r.platform || '',     // Площадка
+              r.theme || '',        // Тема (ссылка)
+              r.text || '',         // Текст сообщения
+              r.date || '',         // Дата
+              r.author || '',       // Ник
+              r.views || 0,         // Просмотры
+              r.engagement || '',   // Вовлечение
+              r.type || ''          // Тип поста
+            ];
+            // Обрезаем до нужного количества колонок
+            return arr.slice(0, tableHeaders.length);
+          });
+          
+          const dataRange = sheet.getRange(row, 1, safeData.length, tableHeaders.length);
+          dataRange.setValues(safeData);
+          
+          // Применяем границы к данным
+          dataRange.setBorder(true, true, true, true, true, true);
+          
+          row += safeData.length;
+        }
+        console.log(`📂 Раздел "${sectionName}": ${dataArr.length} строк`);
+      };
+      
+      writeSection('Отзывы', processedData.reviews);
+      writeSection('Комментарии Топ-20 выдачи', processedData.commentsTop20);
+      writeSection('Активные обсуждения (мониторинг)', processedData.activeDiscussions);
+      
+      // 5. Блок статистики внизу (КАК В ЭТАЛОНЕ)
+      row += 2;
+      
+      // Блок статистики с бежевым фоном как в эталоне
+      const statsStartRow = row;
+      
+      sheet.getRange(row, 1).setValue('Суммарное количество просмотров');
+      sheet.getRange(row, 2).setValue(this.stats.totalViews);
+      row++;
+      
+      sheet.getRange(row, 1).setValue('Количество карточек товара (отзывы)');
+      sheet.getRange(row, 2).setValue(processedData.reviews.length);
+      row++;
+      
+      sheet.getRange(row, 1).setValue('Количество обсуждений (форумы, сообщества, комментарии к статьям)');
+      sheet.getRange(row, 2).setValue(processedData.activeDiscussions.length);
+      row++;
+      
+      sheet.getRange(row, 1).setValue('Доля обсуждений с вовлечением в диалог');
+      sheet.getRange(row, 2).setValue(this.stats.engagementShare || 0);
+      
+      // Применяем форматирование к блоку статистики
+      const statsRange = sheet.getRange(statsStartRow, 1, 4, 2);
+      statsRange.setFontWeight('bold')
+        .setBackground('#f4cccc') // Бежевый/розоватый как в эталоне
+        .setBorder(true, true, true, true, true, true);
+      
+      // 6. Настройка размеров колонок КАК В ЭТАЛОНЕ
+      sheet.setColumnWidth(1, 120);  // Площадка
+      sheet.setColumnWidth(2, 300);  // Тема (широкая для ссылок)
+      sheet.setColumnWidth(3, 400);  // Текст сообщения (самая широкая)
+      sheet.setColumnWidth(4, 100);  // Дата
+      sheet.setColumnWidth(5, 120);  // Ник
+      sheet.setColumnWidth(6, 100);  // Просмотры
+      sheet.setColumnWidth(7, 100);  // Вовлечение
+      sheet.setColumnWidth(8, 80);   // Тип поста
+      
+      // 7. Применяем фильтры
+      const dataRange = sheet.getDataRange();
+      sheet.getRange(5, 1, dataRange.getNumRows() - 4, tableHeaders.length).createFilter();
+      
+      console.log(`📄 Отчет создан: ${reportSheetName}`);
+      return tempSpreadsheet.getUrl();
+    } catch (error) {
+      console.error('❌ Ошибка при создании файла:', error);
+      throw error;
     }
-    
-    writeSection('Отзывы', processedData.reviews);
-    writeSection('Комментарии Топ-20 выдачи', processedData.commentsTop20);
-    writeSection('Активные обсуждения (мониторинг)', processedData.activeDiscussions);
-    
-    // 4. Блок статистики внизу
-    row += 2;
-    sheet.getRange(row, 1).setValue('Суммарное количество просмотров');
-    sheet.getRange(row, 2).setValue(this.stats.totalViews);
-    row++;
-    sheet.getRange(row, 1).setValue('Количество карточек товара (отзывы)');
-    sheet.getRange(row, 2).setValue(processedData.reviews.length);
-    row++;
-    sheet.getRange(row, 1).setValue('Количество обсуждений (форумы, сообщества, комментарии к статьям)');
-    sheet.getRange(row, 2).setValue(processedData.activeDiscussions.length);
-    row++;
-    sheet.getRange(row, 1).setValue('Доля обсуждений с вовлечением в диалог');
-    sheet.getRange(row, 2).setValue(this.stats.engagementShare || 0);
-    sheet.getRange(row - 3, 1, 4, 2).setFontWeight('bold');
-    
-    // Форматирование
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-    sheet.autoResizeColumns(1, headers.length);
-    // Оформление
-    sheet.autoResizeColumns(1, tableHeaders.length);
-    
-    // Применяем фильтры
-    const dataRange = sheet.getDataRange();
-    sheet.getRange(1, 1, dataRange.getNumRows(), dataRange.getNumColumns()).createFilter();
-    
-    console.log(`💾 Создан файл: ${fileName}`);
-    console.log(`🔗 ID файла: ${spreadsheet.getId()}`);
-    
-    return spreadsheet.getId();
-    
-  } catch (error) {
-    console.error('❌ Ошибка при создании файла:', error);
-    throw error;
-  }
-}
-
-// =============================================================================
-// ТЕСТОВЫЕ ФУНКЦИИ
-// =============================================================================
-
-/**
- * Тестирование процессора
- */
-function testProcessor() {
-  console.log('🧪 Запуск тестирования...');
-  
-  try {
-    const result = processGoogleSheets();
-    
-    if (result.success) {
-      console.log('✅ Тестирование успешно завершено');
-      console.log(`📊 Обработано строк: ${result.processedRows}`);
-      console.log(`🔗 ID результата: ${result.resultFileId}`);
-    } else {
-      console.log('❌ Тестирование завершилось с ошибкой:', result.error);
-    console.log(`📄 Отчет создан: ${reportSheetName}`);
-    return tempSpreadsheet.getUrl();
   }
 
   /**
@@ -1112,11 +718,7 @@ function testProcessor() {
       }
     }
     
-    return result;
-    
-  } catch (error) {
-    console.error('❌ Ошибка при тестировании:', error);
-    return { success: false, error: error.message };
+    return null;
   }
 
   // Восстановленный фиксированный маппинг колонок для всех месяцев
@@ -1129,24 +731,23 @@ function testProcessor() {
       author: 7,
       views: 11,
       engagement: 12,
-      postType: 13,
-      link: 2
+      postType: 13
+      // ❌ ИСПРАВЛЕНИЕ: Убираем дублирующуюся колонку link: 3
     };
   }
 
   /**
-   * ИСПРАВЛЕНИЕ: Поиск границ разделов (УЛУЧШЕННАЯ ВЕРСИЯ)
+   * ИСПРАВЛЕНИЕ: Поиск границ разделов (КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ)
    */
   findSectionBoundaries(data) {
     const sections = [];
-    let currentSection = null;
-    let sectionStart = -1;
+    let foundSections = new Set(); // Отслеживаем уже найденные разделы
     
     for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < data.length; i++) {
       const row = data[i];
       const firstCell = String(row[0] || '').toLowerCase().trim();
       
-      // ✅ ИСПРАВЛЕНИЕ: Пропускаем строки статистики
+      // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Пропускаем строки статистики
       if (this.isStatisticsRow(row)) {
         continue;
       }
@@ -1155,84 +756,66 @@ function testProcessor() {
       let sectionType = null;
       let sectionName = '';
       
-      // ✅ ИСПРАВЛЕНИЕ: Более строгие условия для определения заголовков разделов
-      if (firstCell === 'отзывы' || (firstCell.includes('отзывы') && !firstCell.includes('топ-20') && !firstCell.includes('обсуждения') && !firstCell.includes('количество'))) {
+      // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Очень строгие условия для определения заголовков разделов
+      if (firstCell === 'отзывы' && !foundSections.has('reviews')) {
         sectionType = 'reviews';
         sectionName = 'Отзывы';
-      } else if (firstCell.includes('комментарии топ-20') || firstCell.includes('топ-20 выдачи')) {
+        foundSections.add('reviews');
+      } else if ((firstCell.includes('комментарии топ-20') || firstCell.includes('топ-20 выдачи') || firstCell === 'комментарии топ-20 выдачи') && !foundSections.has('commentsTop20')) {
         sectionType = 'commentsTop20';
         sectionName = 'Комментарии Топ-20';
-      } else if (firstCell.includes('активные обсуждения') || firstCell.includes('мониторинг')) {
+        foundSections.add('commentsTop20');
+      } else if ((firstCell.includes('активные обсуждения') || firstCell.includes('мониторинг') || firstCell === 'активные обсуждения (мониторинг)') && !foundSections.has('activeDiscussions')) {
         sectionType = 'activeDiscussions';
         sectionName = 'Активные обсуждения';
+        foundSections.add('activeDiscussions');
       }
       
       // Если найден новый раздел
-      if (sectionType && sectionType !== currentSection) {
-        // Закрываем предыдущий раздел
-        if (currentSection && sectionStart !== -1) {
-          // ✅ ИСПРАВЛЕНИЕ: Улучшенное определение конца раздела
-          let endRow = i - 1;
+      if (sectionType) {
+        console.log(`📂 Найден заголовок раздела "${sectionName}" в строке ${i + 1}`);
+        
+        // Ищем конец раздела
+        let endRow = data.length - 1;
+        
+        // Ищем следующий заголовок раздела или начало статистики
+        for (let j = i + 1; j < data.length; j++) {
+          const nextRow = data[j];
+          const nextFirstCell = String(nextRow[0] || '').toLowerCase().trim();
           
-          // Ищем последнюю строку данных (исключаем статистику и пустые строки)
-          for (let j = i - 1; j >= sectionStart; j--) {
-            const checkRow = data[j];
-            if (!this.isStatisticsRow(checkRow) && !this.isEmptyRow(checkRow)) {
-              endRow = j;
-              break;
-            }
+          // Если нашли следующий заголовок раздела или статистику
+          if (nextFirstCell === 'отзывы' || 
+              nextFirstCell.includes('комментарии топ-20') || 
+              nextFirstCell.includes('топ-20 выдачи') ||
+              nextFirstCell.includes('активные обсуждения') || 
+              nextFirstCell.includes('мониторинг') ||
+              this.isStatisticsRow(nextRow)) {
+            endRow = j - 1;
+            break;
           }
-          
-          sections.push({
-            type: currentSection,
-            name: this.getSectionName(currentSection),
-            startRow: sectionStart,
-            endRow: endRow
-          });
         }
         
-        // Начинаем новый раздел
-        currentSection = sectionType;
-        sectionStart = i + 1; // ✅ ИСПРАВЛЕНО: исключаем заголовок секции из данных
-        console.log(`📂 Найден раздел "${sectionName}" в строке ${i + 1}`);
-      }
-    }
-    
-    // Закрываем последний раздел
-    if (currentSection && sectionStart !== -1) {
-      // ✅ ИСПРАВЛЕНИЕ: Улучшенное определение конца последнего раздела
-      let endRow = data.length - 1;
-      
-      // Ищем последнюю строку данных (исключаем статистику)
-      for (let j = data.length - 1; j >= sectionStart; j--) {
-        const checkRow = data[j];
-        if (!this.isStatisticsRow(checkRow) && !this.isEmptyRow(checkRow)) {
-          endRow = j;
-          break;
+        // Ищем последнюю строку данных в пределах раздела
+        for (let j = endRow; j > i; j--) {
+          const checkRow = data[j];
+          if (!this.isStatisticsRow(checkRow) && !this.isEmptyRow(checkRow)) {
+            endRow = j;
+            break;
+          }
         }
+        
+        sections.push({
+          type: sectionType,
+          name: sectionName,
+          startRow: i + 1, // Начинаем после заголовка
+          endRow: endRow
+        });
+        
+        console.log(`📊 Раздел "${sectionName}": строки ${i + 2}-${endRow + 1} (${Math.max(0, endRow - i)} записей)`);
       }
-      
-      sections.push({
-        type: currentSection,
-        name: this.getSectionName(currentSection),
-        startRow: sectionStart,
-        endRow: endRow
-      });
     }
     
     return sections;
-  }
-
-  /**
-   * Получение названия раздела
-   */
-  getSectionName(sectionType) {
-    const names = {
-      'reviews': 'Отзывы',
-      'commentsTop20': 'Комментарии Топ-20',
-      'activeDiscussions': 'Активные обсуждения'
-    };
-    return names[sectionType] || sectionType;
   }
 
   /**
@@ -1263,43 +846,30 @@ function testProcessor() {
            firstCell.includes('площадки со статистикой') ||
            firstCell.includes('количество прочтений увеличивается');
   }
-}
 
-/**
- * Анализ структуры данных
- */
-function analyzeDataStructure() {
-  console.log('🔍 Анализ структуры данных...');
-  
-  try {
-    const sourceData = getSourceData();
-    
-    if (sourceData.length === 0) {
-      console.log('❌ Нет данных для анализа');
-      return;
-    }
-    
-    // Анализируем первые 10 строк
-    for (let i = 0; i < Math.min(10, sourceData.length); i++) {
-      const row = sourceData[i];
-      console.log(`Строка ${i + 1}:`, row.slice(0, 5).map(cell => 
-        (cell || '').toString().substring(0, 30)
-      ));
-    }
-    
-    // Поиск заголовков
-    const headerInfo = findHeaders(sourceData);
-    console.log('📋 Найденные заголовки:', Object.keys(headerInfo.mapping));
-    
-    return {
-      totalRows: sourceData.length,
-      headerRow: headerInfo.row,
-      columns: Object.keys(headerInfo.mapping)
-    };
-    
-  } catch (error) {
-    console.error('❌ Ошибка при анализе:', error);
-    return { error: error.message };
+  /**
+   * Проверка на пустую строку
+   */
+  isEmptyRow(row) {
+    return !row || row.every(cell => !cell || String(cell).trim() === '');
+  }
+
+  /**
+   * Получение названия месяца
+   */
+  getMonthName(monthIndex) {
+    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    return months[monthIndex] || 'Январь';
+  }
+
+  /**
+   * Получение короткого названия месяца
+   */
+  getMonthShort(monthIndex) {
+    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                   'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    return months[monthIndex] || 'Янв';
   }
 }
 
@@ -1309,6 +879,88 @@ function analyzeDataStructure() {
 
 /**
  * Основная функция для запуска из Google Apps Script
+ */
+function processGoogleSheets(spreadsheetId = null, sheetName = null) {
+  try {
+    const processor = new FinalMonthlyReportProcessor();
+    
+    // Если ID не передан, используем текущую таблицу
+    if (!spreadsheetId) {
+      spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+    }
+    
+    return processor.processReport(spreadsheetId, sheetName);
+  } catch (error) {
+    console.error('❌ Ошибка в главной функции:', error);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+/**
+ * Функция для тестирования
+ */
+function testProcessor() {
+  console.log('🧪 Запуск тестирования...');
+  
+  try {
+    const result = processGoogleSheets();
+    
+    if (result.success) {
+      console.log('✅ Тестирование успешно завершено');
+      console.log(`📊 Статистика:`, result.statistics);
+      console.log(`🔗 Отчет: ${result.reportUrl}`);
+    } else {
+      console.log('❌ Тестирование завершилось с ошибкой:', result.error);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Ошибка при тестировании:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Функция для анализа данных
+ */
+function analyzeDataStructure() {
+  console.log('🔍 Анализ структуры данных...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getActiveSheet();
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length === 0) {
+      console.log('❌ Нет данных для анализа');
+      return;
+    }
+    
+    // Анализируем первые 10 строк
+    for (let i = 0; i < Math.min(10, data.length); i++) {
+      const row = data[i];
+      console.log(`Строка ${i + 1}:`, row.slice(0, 5).map(cell => 
+        (cell || '').toString().substring(0, 30)
+      ));
+    }
+    
+    return {
+      totalRows: data.length,
+      columns: data[0] ? data[0].length : 0
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка при анализе:', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * Основная функция для запуска
  */
 function main() {
   return processGoogleSheets();

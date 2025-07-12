@@ -95,7 +95,7 @@ class FinalGoogleAppsScriptTester {
   }
 
   /**
-   * Подготовка исходных данных
+   * Подготовка исходных данных (ИСПРАВЛЕНО: только целевые месяцы)
    */
   async prepareSourceData() {
     console.log('📊 Загрузка исходных данных...');
@@ -105,6 +105,10 @@ class FinalGoogleAppsScriptTester {
       const sheets = this.currentSpreadsheet.getSheets();
       
       const sourceData = {};
+      
+      // ИСПРАВЛЕНИЕ: Определяем только целевые месяцы 2025 года
+      const targetMonths = ['Февраль', 'Март', 'Апрель', 'Май'];
+      const targetYear = 2025;
       
       for (const sheet of sheets) {
         const sheetName = sheet.getName();
@@ -119,7 +123,9 @@ class FinalGoogleAppsScriptTester {
         
         // Определяем месяц для каждого листа
         const monthInfo = this.detectMonthFromSheet(sheetName, data);
-        if (monthInfo) {
+        
+        // ИСПРАВЛЕНИЕ: Обрабатываем только целевые месяцы 2025 года
+        if (monthInfo && monthInfo.year === targetYear && targetMonths.includes(monthInfo.name)) {
           // Проверяем, есть ли соответствующий эталонный лист
           const referenceSheet = this.findReferenceSheet(monthInfo);
           
@@ -135,10 +141,12 @@ class FinalGoogleAppsScriptTester {
           } else {
             console.log(`⚠️ Лист "${sheetName}" -> ${monthInfo.name} ${monthInfo.year} (нет эталона)`);
           }
+        } else if (monthInfo) {
+          console.log(`⏭️ Пропускаем лист "${sheetName}" -> ${monthInfo.name} ${monthInfo.year} (не целевой месяц)`);
         }
       }
       
-      console.log(`📊 Загружено ${Object.keys(sourceData).length} листов с данными`);
+      console.log(`📊 Загружено ${Object.keys(sourceData).length} целевых листов с данными (февраль-май 2025)`);
       return sourceData;
       
     } catch (error) {
@@ -250,7 +258,8 @@ class FinalGoogleAppsScriptTester {
       'медиаплан',
       'эталон',
       'reference',
-      'etalon'
+      'etalon',
+      'инструкция'
     ];
     
     // Проверяем исключения (ИСПРАВЛЕНО: более точная проверка)
@@ -855,19 +864,23 @@ class FinalGoogleAppsScriptTester {
    */
   extractStatisticsFromData(data) {
     console.log(`🔍 Анализ структуры файла (${data.length} строк)`);
+    
     // Ищем 4 ключевые метрики в последних 50 строках
     let totalViews = null;
     let productCards = null;
     let discussions = null;
     let engagementShare = null;
+    
     const N = Math.min(50, data.length);
     for (let idx = 0; idx < N; idx++) {
       const i = data.length - N + idx;
       const row = data[i].map(cell => String(cell).replace(/\s+/g, ' ').trim());
       const joined = row.join(' ').toLowerCase();
+      
       if (idx >= N - 10) {
         console.log(`📋 Строка ${i + 1}: "${joined.substring(0, 100)}..."`);
       }
+      
       // Суммарное количество просмотров (ТОЧНОЕ совпадение)
       if (totalViews === null && joined.includes('суммарное количество просмотров')) {
         for (const cell of row) {
@@ -879,6 +892,7 @@ class FinalGoogleAppsScriptTester {
           }
         }
       }
+      
       // Количество карточек товара (отзывы) (ТОЧНОЕ совпадение)
       if (productCards === null && joined.includes('количество карточек товара') && joined.includes('отзыв')) {
         for (const cell of row) {
@@ -890,6 +904,7 @@ class FinalGoogleAppsScriptTester {
           }
         }
       }
+      
       // Количество обсуждений (ТОЧНОЕ совпадение)
       if (discussions === null && joined.includes('количество обсуждений') && joined.includes('форумы')) {
         for (const cell of row) {
@@ -901,6 +916,7 @@ class FinalGoogleAppsScriptTester {
           }
         }
       }
+      
       // Доля обсуждений с вовлечением (ТОЧНОЕ совпадение)
       if (engagementShare === null && joined.includes('доля обсуждений с вовлечением')) {
         for (const cell of row) {
@@ -913,48 +929,64 @@ class FinalGoogleAppsScriptTester {
         }
       }
     }
-    // Подсчёт строк в разделах (оставляем как есть)
+    
+    // Подсчёт строк в разделах (ИСПРАВЛЕНО: точное определение разделов)
     let reviews = 0, commentsTop20 = 0, activeDiscussions = 0;
     let currentSection = '';
     let sectionStartRow = -1;
+    
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (row.length === 0) continue;
+      
       const firstCell = String(row[0]).toLowerCase().trim();
-      if (firstCell.includes('отзывы')) {
+      
+      // ИСПРАВЛЕНИЕ: Точное определение разделов
+      if (firstCell === 'отзывы') {
         currentSection = 'reviews';
         sectionStartRow = i;
         console.log(`📂 Найден раздел "Отзывы" в строке ${i + 1}`);
         continue;
       }
-      if (firstCell.includes('комментарии топ-20') || firstCell.includes('топ-20')) {
+      
+      if (firstCell === 'комментарии топ-20 выдачи' || firstCell.includes('комментарии топ-20')) {
         currentSection = 'commentsTop20';
         sectionStartRow = i;
         console.log(`📂 Найден раздел "Комментарии Топ-20" в строке ${i + 1}`);
         continue;
       }
-      if (firstCell.includes('активные обсуждения') || firstCell.includes('мониторинг')) {
+      
+      if (firstCell === 'активные обсуждения (мониторинг)' || firstCell.includes('активные обсуждения')) {
         currentSection = 'activeDiscussions';
         sectionStartRow = i;
         console.log(`📂 Найден раздел "Активные обсуждения" в строке ${i + 1}`);
         continue;
       }
+      
+      // Подсчитываем строки данных в разделах
       if (currentSection && sectionStartRow !== -1 && i > sectionStartRow) {
         const hasData = row.some(cell => String(cell).trim().length > 0);
-        const isHeader = row.some(cell => String(cell).toLowerCase().includes('тип') || 
-                                        String(cell).toLowerCase().includes('площадка') ||
+        const isHeader = row.some(cell => String(cell).toLowerCase().includes('площадка') || 
+                                        String(cell).toLowerCase().includes('тема') ||
                                         String(cell).toLowerCase().includes('продукт'));
-        if (hasData && !isHeader) {
+        const isStatistics = firstCell.includes('суммарное количество') || 
+                           firstCell.includes('количество карточек') ||
+                           firstCell.includes('количество обсуждений') ||
+                           firstCell.includes('доля обсуждений');
+        
+        if (hasData && !isHeader && !isStatistics) {
           if (currentSection === 'reviews') reviews++;
           if (currentSection === 'commentsTop20') commentsTop20++;
           if (currentSection === 'activeDiscussions') activeDiscussions++;
         }
       }
     }
+    
     console.log(`📊 Результат подсчёта разделов:`);
     console.log(`   - Отзывы: ${reviews} строк`);
     console.log(`   - Комментарии Топ-20: ${commentsTop20} строк`);
     console.log(`   - Активные обсуждения: ${activeDiscussions} строк`);
+    
     return {
       totalViews,
       productCards,

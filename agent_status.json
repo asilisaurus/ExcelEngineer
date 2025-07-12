@@ -1,0 +1,67 @@
+{
+  "agentId": "bc-be5df7e8-043a-4363-8fb5-572b1eb8c17c",
+  "status": "in_progress",
+  "currentTask": "ГОТОВ К ТЕСТИРОВАНИЮ: Критические исправления завершены - процессор готов для тестирования на 4 месяцах данных",
+  "startTime": null,
+  "lastUpdate": "2025-07-12T16:01:53.162Z",
+  "missionCritical": {
+    "spreadsheetId": "1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI",
+    "url": "https://docs.google.com/spreadsheets/d/1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI/edit?gid=1783011202#gid=1783011202",
+    "autonomousMode": true,
+    "maxResources": true,
+    "fullPermissions": true
+  },
+  "testResults": {
+    "february": {
+      "status": "pending",
+      "accuracy": 0,
+      "reviewsCount": 0,
+      "commentsCount": 0,
+      "totalViews": 0,
+      "errors": [],
+      "lastTested": null
+    },
+    "march": {
+      "status": "pending",
+      "accuracy": 0,
+      "reviewsCount": 0,
+      "commentsCount": 0,
+      "totalViews": 0,
+      "errors": [],
+      "lastTested": null
+    },
+    "april": {
+      "status": "pending",
+      "accuracy": 0,
+      "reviewsCount": 0,
+      "commentsCount": 0,
+      "totalViews": 0,
+      "errors": [],
+      "lastTested": null
+    },
+    "may": {
+      "status": "pending",
+      "accuracy": 0,
+      "reviewsCount": 0,
+      "commentsCount": 0,
+      "totalViews": 0,
+      "errors": [],
+      "lastTested": null
+    }
+  },
+  "overallProgress": {
+    "totalTests": 4,
+    "completedTests": 0,
+    "averageAccuracy": 0,
+    "targetAccuracy": 95
+  },
+  "requests": [],
+  "responses": [],
+  "logs": [
+    {
+      "timestamp": "2025-07-12T16:01:53.151Z",
+      "type": "info",
+      "message": "Мониторинг запущен"
+    }
+  ]
+}
