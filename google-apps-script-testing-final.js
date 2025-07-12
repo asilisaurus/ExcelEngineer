@@ -32,6 +32,50 @@ const TEST_CONFIG = {
   }
 };
 
+// ==================== КЛАСС ПРОЦЕССОРА ====================
+
+/**
+ * Класс-обёртка для финального процессора
+ */
+class FinalMonthlyReportProcessor {
+  processReport(spreadsheetId) {
+    try {
+      // Устанавливаем ID таблицы во временную переменную
+      const originalSheetId = '1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI';
+      
+      // Вызываем главную функцию обработки
+      const result = processGoogleSheets();
+      
+      return {
+        success: result.success,
+        statistics: result.statistics || {
+          totalRows: result.processedRows || 0,
+          reviewsCount: result.reviewsCount || 0,
+          targetedCount: result.targetedCount || 0,
+          socialCount: result.socialCount || 0,
+          totalViews: result.totalViews || 0,
+          totalEngagement: result.totalEngagement || 0
+        },
+        resultFileId: result.resultFileId
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        error: error.toString(),
+        statistics: {
+          totalRows: 0,
+          reviewsCount: 0,
+          targetedCount: 0,
+          socialCount: 0,
+          totalViews: 0,
+          totalEngagement: 0
+        }
+      };
+    }
+  }
+}
+
 // ==================== КЛАСС ТЕСТИРОВАНИЯ ====================
 
 /**
@@ -814,7 +858,205 @@ function updateMenuWithFinalTesting() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🧪 Финальное тестирование')
     .addItem('Запустить финальное тестирование', 'runFinalTesting')
+    .addItem('Быстрый тест процессора', 'quickTestProcessor')
     .addSeparator()
     .addItem('Показать конфигурацию', 'showFinalTestConfig')
     .addToUi();
+}
+
+/**
+ * Быстрое тестирование процессора
+ */
+function quickTestProcessor() {
+  console.log('🧪 БЫСТРОЕ ТЕСТИРОВАНИЕ ПРОЦЕССОРА');
+  console.log('==================================');
+  
+  try {
+    // Запускаем процессор напрямую
+    const result = processGoogleSheets();
+    
+    console.log('\n📊 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ:');
+    console.log(`✅ Успех: ${result.success}`);
+    
+    if (result.success) {
+      console.log(`📊 Исходных строк: ${result.sourceRows}`);
+      console.log(`✅ Обработано строк: ${result.processedRows}`);
+      console.log(`📝 Отзывов: ${result.reviewsCount || 0}`);
+      console.log(`🎯 Целевых: ${result.targetedCount || 0}`);
+      console.log(`📱 Социальных: ${result.socialCount || 0}`);
+      console.log(`👁️ Всего просмотров: ${result.totalViews || 0}`);
+      console.log(`💬 Всего вовлечений: ${result.totalEngagement || 0}`);
+      console.log(`🔗 ID результата: ${result.resultFileId}`);
+      
+      // Анализ качества
+      const quality = analyzeProcessorQuality(result);
+      console.log(`\n📈 ОЦЕНКА КАЧЕСТВА: ${quality.score.toFixed(1)}%`);
+      
+      if (quality.issues.length > 0) {
+        console.log('\n⚠️ НАЙДЕННЫЕ ПРОБЛЕМЫ:');
+        quality.issues.forEach((issue, index) => {
+          console.log(`${index + 1}. ${issue}`);
+        });
+      }
+      
+      if (quality.recommendations.length > 0) {
+        console.log('\n💡 РЕКОМЕНДАЦИИ:');
+        quality.recommendations.forEach((rec, index) => {
+          console.log(`${index + 1}. ${rec}`);
+        });
+      }
+      
+    } else {
+      console.log(`❌ Ошибка: ${result.error}`);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Критическая ошибка тестирования:', error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Анализ качества работы процессора
+ */
+function analyzeProcessorQuality(result) {
+  const analysis = {
+    score: 0,
+    issues: [],
+    recommendations: []
+  };
+  
+  let scoreComponents = 0;
+  let maxScore = 0;
+  
+  // Проверка успешности
+  if (result.success) {
+    scoreComponents += 20;
+  } else {
+    analysis.issues.push('Процессор завершился с ошибкой');
+    analysis.recommendations.push('Исправить основную ошибку обработки');
+  }
+  maxScore += 20;
+  
+  // Проверка количества обработанных строк
+  const processedRows = result.processedRows || 0;
+  if (processedRows >= 10) {
+    scoreComponents += 15;
+  } else if (processedRows > 0) {
+    scoreComponents += 10;
+    analysis.issues.push(`Обработано мало строк: ${processedRows}`);
+    analysis.recommendations.push('Проверить логику определения строк данных');
+  } else {
+    analysis.issues.push('Не обработано ни одной строки');
+    analysis.recommendations.push('Исправить логику обработки данных');
+  }
+  maxScore += 15;
+  
+  // Проверка отзывов
+  const reviewsCount = result.reviewsCount || 0;
+  if (reviewsCount >= 3) {
+    scoreComponents += 15;
+  } else if (reviewsCount > 0) {
+    scoreComponents += 10;
+    analysis.issues.push(`Найдено мало отзывов: ${reviewsCount}`);
+    analysis.recommendations.push('Улучшить определение раздела отзывов');
+  } else {
+    analysis.issues.push('Не найдено отзывов');
+    analysis.recommendations.push('Исправить поиск раздела "Отзывы сайтов (ОС)"');
+  }
+  maxScore += 15;
+  
+  // Проверка целевых сайтов
+  const targetedCount = result.targetedCount || 0;
+  if (targetedCount >= 2) {
+    scoreComponents += 15;
+  } else if (targetedCount > 0) {
+    scoreComponents += 10;
+    analysis.issues.push(`Найдено мало целевых сайтов: ${targetedCount}`);
+    analysis.recommendations.push('Улучшить определение раздела целевых сайтов');
+  } else {
+    analysis.issues.push('Не найдено целевых сайтов');
+    analysis.recommendations.push('Исправить поиск раздела "Целевые сайты (ЦС)"');
+  }
+  maxScore += 15;
+  
+  // Проверка социальных площадок
+  const socialCount = result.socialCount || 0;
+  if (socialCount >= 2) {
+    scoreComponents += 15;
+  } else if (socialCount > 0) {
+    scoreComponents += 10;
+    analysis.issues.push(`Найдено мало социальных площадок: ${socialCount}`);
+    analysis.recommendations.push('Улучшить определение раздела социальных площадок');
+  } else {
+    analysis.issues.push('Не найдено социальных площадок');
+    analysis.recommendations.push('Исправить поиск раздела "Площадки социальные (ПС)"');
+  }
+  maxScore += 15;
+  
+  // Проверка просмотров
+  const totalViews = result.totalViews || 0;
+  if (totalViews > 100) {
+    scoreComponents += 10;
+  } else if (totalViews > 0) {
+    scoreComponents += 5;
+    analysis.issues.push(`Найдено мало просмотров: ${totalViews}`);
+    analysis.recommendations.push('Проверить извлечение просмотров из данных');
+  } else {
+    analysis.issues.push('Не найдено просмотров');
+    analysis.recommendations.push('Исправить извлечение просмотров');
+  }
+  maxScore += 10;
+  
+  // Проверка вовлечения
+  const totalEngagement = result.totalEngagement || 0;
+  if (totalEngagement > 10) {
+    scoreComponents += 10;
+  } else if (totalEngagement > 0) {
+    scoreComponents += 5;
+    analysis.issues.push(`Найдено мало вовлечений: ${totalEngagement}`);
+    analysis.recommendations.push('Проверить извлечение вовлечений из данных');
+  } else {
+    analysis.issues.push('Не найдено вовлечений');
+    analysis.recommendations.push('Исправить извлечение вовлечений');
+  }
+  maxScore += 10;
+  
+  analysis.score = maxScore > 0 ? (scoreComponents / maxScore) * 100 : 0;
+  
+  return analysis;
+}
+
+/**
+ * Автоматическое исправление процессора
+ */
+function autoFixProcessor() {
+  console.log('🔧 АВТОМАТИЧЕСКОЕ ИСПРАВЛЕНИЕ ПРОЦЕССОРА');
+  console.log('=========================================');
+  
+  // Сначала запускаем тест
+  const result = quickTestProcessor();
+  
+  if (!result.success) {
+    console.log('❌ Невозможно исправить - процессор не запускается');
+    return false;
+  }
+  
+  const quality = analyzeProcessorQuality(result);
+  
+  if (quality.score >= 90) {
+    console.log('✅ Процессор работает отлично, исправления не требуются');
+    return true;
+  }
+  
+  console.log('\n🔧 Применение исправлений...');
+  console.log('Примечание: Автоматические исправления требуют ручной настройки кода');
+  
+  quality.recommendations.forEach((rec, index) => {
+    console.log(`${index + 1}. TODO: ${rec}`);
+  });
+  
+  return false;
 } 

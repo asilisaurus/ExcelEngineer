@@ -28,7 +28,7 @@ function processGoogleSheets() {
     
     // 2. Обрабатываем данные
     const processedData = processData(sourceData);
-    console.log(`✅ Обработано ${processedData.length} записей`);
+    console.log(`✅ Обработано записей: отзывов ${processedData.statistics.reviewsCount}, целевых ${processedData.statistics.targetedCount}, социальных ${processedData.statistics.socialCount}`);
     
     // 3. Создаем результирующий файл
     const resultFileId = createResultFile(processedData);
@@ -37,8 +37,14 @@ function processGoogleSheets() {
     return {
       success: true,
       sourceRows: sourceData.length,
-      processedRows: processedData.length,
-      resultFileId: resultFileId
+      processedRows: processedData.statistics.totalRows,
+      reviewsCount: processedData.statistics.reviewsCount,
+      targetedCount: processedData.statistics.targetedCount,
+      socialCount: processedData.statistics.socialCount,
+      totalViews: processedData.statistics.totalViews,
+      totalEngagement: processedData.statistics.totalEngagement,
+      resultFileId: resultFileId,
+      statistics: processedData.statistics
     };
     
   } catch (error) {
@@ -54,8 +60,8 @@ function processGoogleSheets() {
  * Получение исходных данных из Google Sheets
  */
 function getSourceData() {
-  // Замените на ID вашего Google Sheets
-  const SHEET_ID = 'YOUR_SHEET_ID_HERE';
+  // ID реальной таблицы для тестирования
+  const SHEET_ID = '1RT8T5gnDPe0KMikTmVNdSvxqDal3aQUmelpEwItgxMI';
   
   try {
     const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
@@ -116,42 +122,79 @@ function processData(rawData) {
   const headerInfo = findHeaders(rawData);
   console.log(`🔍 Найдена строка заголовков: ${headerInfo.row}`);
   
-  // 2. Извлечение данных
-  const dataRows = rawData.slice(headerInfo.row + 1);
+  // 2. Обработка данных по разделам
+  const processedData = {
+    reviews: [],
+    targeted: [],
+    social: [],
+    statistics: {
+      totalRows: 0,
+      reviewsCount: 0,
+      targetedCount: 0,
+      socialCount: 0,
+      totalViews: 0,
+      totalEngagement: 0
+    }
+  };
   
-  // 3. Обработка строк
-  const processedRows = [];
+  let currentSection = null;
   
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
+  // 3. Проходим по всем строкам
+  for (let i = 0; i < rawData.length; i++) {
+    const row = rawData[i];
     
     // Пропускаем пустые строки
     if (isEmptyRow(row)) continue;
     
-    // Пропускаем строки-заголовки
-    if (isHeaderRow(row)) {
-      console.log(`⏭️ Пропущена строка-заголовок: ${row[0]}`);
+    // Определяем секцию по первой ячейке
+    const firstCell = (row[0] || '').toString().toLowerCase().trim();
+    
+    // Проверяем, является ли строка заголовком раздела
+    if (isSectionHeader(firstCell)) {
+      currentSection = determineSectionType(firstCell);
+      console.log(`📋 Найден раздел: ${currentSection} (строка ${i + 1})`);
       continue;
     }
     
-    // Определяем тип контента
-    const contentType = determineContentType(row);
+    // Пропускаем заголовки таблицы
+    if (isTableHeader(row)) {
+      console.log(`📊 Пропуск заголовка таблицы: строка ${i + 1}`);
+      continue;
+    }
     
-    if (contentType === 'review' || contentType === 'comment') {
-      const processedRow = extractRowData(row, contentType, headerInfo.mapping);
+    // Обрабатываем строки данных
+    if (currentSection && isDataRow(row, headerInfo.mapping)) {
+      const processedRow = extractRowData(row, currentSection, headerInfo.mapping);
+      
       if (processedRow) {
-        processedRows.push(processedRow);
+        processedData[currentSection].push(processedRow);
+        processedData.statistics.totalRows++;
+        
+        // Обновляем статистику
+        switch (currentSection) {
+          case 'reviews':
+            processedData.statistics.reviewsCount++;
+            break;
+          case 'targeted':
+            processedData.statistics.targetedCount++;
+            break;
+          case 'social':
+            processedData.statistics.socialCount++;
+            break;
+        }
+        
+        processedData.statistics.totalViews += processedRow.views || 0;
+        processedData.statistics.totalEngagement += processedRow.engagement || 0;
+        
+        console.log(`✅ Обработана строка ${i + 1}: ${processedRow.site} - ${processedRow.views} просмотров`);
       }
     }
   }
   
-  // 4. Группировка по типам
-  const reviews = processedRows.filter(row => row.type === 'review');
-  const comments = processedRows.filter(row => row.type === 'comment');
+  console.log(`📊 Итого: отзывов ${processedData.statistics.reviewsCount}, целевых ${processedData.statistics.targetedCount}, социальных ${processedData.statistics.socialCount}`);
+  console.log(`📈 Общие просмотры: ${processedData.statistics.totalViews}, вовлечение: ${processedData.statistics.totalEngagement}`);
   
-  console.log(`📊 Найдено отзывов: ${reviews.length}, комментариев: ${comments.length}`);
-  
-  return processedRows;
+  return processedData;
 }
 
 /**
@@ -212,43 +255,66 @@ function getDefaultMapping() {
   };
 }
 
+
+
 /**
- * Определение типа контента
+ * Проверка, является ли строка заголовком раздела
  */
-function determineContentType(row) {
-  // Проверяем последнюю колонку (тип поста)
-  const lastColIndex = row.length - 1;
-  const lastColValue = (row[lastColIndex] || '').toString().toLowerCase().trim();
+function isSectionHeader(text) {
+  const sectionPatterns = [
+    'отзывы сайтов', 'ос',
+    'целевые сайты', 'цс', 
+    'площадки социальные', 'пс',
+    'отзыв', 'целевые', 'площадки'
+  ];
   
-  if (lastColValue === 'ос' || lastColValue === 'основное сообщение') {
-    return 'review';
-  }
-  
-  if (lastColValue === 'цс' || lastColValue === 'целевое сообщение') {
-    return 'comment';
-  }
-  
-  // Дополнительная проверка по первой колонке
-  const firstColValue = (row[0] || '').toString().toLowerCase().trim();
-  if (firstColValue.includes('отзыв') || firstColValue.includes('ос')) {
-    return 'review';
-  }
-  
-  if (firstColValue.includes('комментарий') || firstColValue.includes('цс')) {
-    return 'comment';
-  }
-  
-  return 'unknown';
+  return sectionPatterns.some(pattern => text.includes(pattern));
 }
 
 /**
- * Проверка, является ли строка заголовком
+ * Определение типа раздела
  */
-function isHeaderRow(row) {
-  const firstCell = (row[0] || '').toString().toLowerCase().trim();
-  const headerPatterns = ['отзывы', 'комментарии', 'обсуждения'];
+function determineSectionType(text) {
+  if (text.includes('отзыв') || text.includes('ос')) {
+    return 'reviews';
+  }
+  if (text.includes('целевые') || text.includes('цс')) {
+    return 'targeted';
+  }
+  if (text.includes('площадки') || text.includes('пс')) {
+    return 'social';
+  }
+  return 'other';
+}
+
+/**
+ * Проверка, является ли строка заголовком таблицы
+ */
+function isTableHeader(row) {
+  if (!row || row.length === 0) return false;
   
-  return headerPatterns.includes(firstCell);
+  const rowText = row.join(' ').toLowerCase();
+  const headerPatterns = ['тип размещения', 'площадка', 'текст сообщения'];
+  
+  return headerPatterns.some(pattern => rowText.includes(pattern));
+}
+
+/**
+ * Проверка, является ли строка данными
+ */
+function isDataRow(row, mapping) {
+  if (!row || row.length < 3) return false;
+  
+  // Проверяем наличие основных данных
+  const platformIndex = mapping['площадка'] || 1;
+  const textIndex = mapping['текст сообщения'] || 4;
+  
+  const platform = row[platformIndex];
+  const text = row[textIndex];
+  
+  return platform && text && 
+         platform.toString().trim().length > 0 && 
+         text.toString().trim().length > 10;
 }
 
 /**
@@ -261,25 +327,39 @@ function isEmptyRow(row) {
 /**
  * Извлечение данных из строки
  */
-function extractRowData(row, type, mapping) {
+function extractRowData(row, sectionType, mapping) {
   try {
     // Индексы колонок (с fallback на стандартные позиции)
+    const placementTypeIndex = mapping['тип размещения'] || 0;
     const siteIndex = mapping['площадка'] || 1;
+    const productIndex = mapping['продукт'] || 2;
     const linkIndex = mapping['ссылка на сообщение'] || 3;
     const textIndex = mapping['текст сообщения'] || 4;
+    const approvalIndex = mapping['согласование/комментарии'] || 5;
     const dateIndex = mapping['дата'] || 6;
+    const nicknameIndex = mapping['ник'] || 7;
     const authorIndex = mapping['автор'] || 8;
+    const startViewsIndex = mapping['просмотры темы на старте'] || 9;
+    const endViewsIndex = mapping['просмотры в конце месяца'] || 10;
     const viewsIndex = mapping['просмотров получено'] || 11;
     const engagementIndex = mapping['вовлечение'] || 12;
+    const postTypeIndex = mapping['тип поста'] || 13;
     
     // Извлекаем данные
+    const placementType = cleanValue(row[placementTypeIndex]);
     const site = cleanValue(row[siteIndex]);
+    const product = cleanValue(row[productIndex]);
     const link = cleanValue(row[linkIndex]);
     const text = cleanValue(row[textIndex]);
+    const approval = cleanValue(row[approvalIndex]);
     const date = cleanValue(row[dateIndex]);
+    const nickname = cleanValue(row[nicknameIndex]);
     const author = cleanValue(row[authorIndex]);
+    const startViews = extractViews(row[startViewsIndex]);
+    const endViews = extractViews(row[endViewsIndex]);
     const views = extractViews(row[viewsIndex]);
     const engagement = extractEngagement(row[engagementIndex]);
+    const postType = cleanValue(row[postTypeIndex]);
     
     // Валидация обязательных полей
     if (!site || !text) {
@@ -287,14 +367,21 @@ function extractRowData(row, type, mapping) {
     }
     
     return {
-      type: type,
+      section: sectionType,
+      placementType: placementType,
       site: site,
+      product: product,
       link: link,
       text: text,
+      approval: approval,
       date: date,
+      nickname: nickname,
       author: author,
+      startViews: startViews,
+      endViews: endViews,
       views: views,
-      engagement: engagement
+      engagement: engagement,
+      postType: postType
     };
     
   } catch (error) {
@@ -353,31 +440,92 @@ function createResultFile(processedData) {
     sheet.setName('Результаты');
     
     // Заголовки
-    const headers = ['Тип', 'Площадка', 'Ссылка', 'Текст', 'Дата', 'Автор', 'Просмотры', 'Вовлечение'];
+    const headers = [
+      'Раздел', 'Тип размещения', 'Площадка', 'Продукт', 'Ссылка', 
+      'Текст сообщения', 'Дата', 'Автор', 'Просмотры получено', 'Вовлечение'
+    ];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     
-    // Данные
-    const dataForSheet = processedData.map(row => [
-      row.type === 'review' ? 'Отзыв' : 'Комментарий',
-      row.site,
-      row.link,
-      row.text,
-      row.date,
-      row.author,
-      row.views,
-      row.engagement
-    ]);
+    // Форматируем заголовки
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4285f4');
+    headerRange.setFontColor('#ffffff');
     
-    if (dataForSheet.length > 0) {
-      sheet.getRange(2, 1, dataForSheet.length, headers.length).setValues(dataForSheet);
-    }
+    let currentRow = 2;
     
-    // Форматирование
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    // Добавляем данные по разделам
+    const sections = [
+      { key: 'reviews', name: 'ОТЗЫВЫ САЙТОВ (ОС)' },
+      { key: 'targeted', name: 'ЦЕЛЕВЫЕ САЙТЫ (ЦС)' },
+      { key: 'social', name: 'ПЛОЩАДКИ СОЦИАЛЬНЫЕ (ПС)' }
+    ];
+    
+    sections.forEach(section => {
+      const sectionData = processedData[section.key] || [];
+      
+      if (sectionData.length > 0) {
+        // Добавляем заголовок раздела
+        sheet.getRange(currentRow, 1).setValue(section.name);
+        sheet.getRange(currentRow, 1, 1, headers.length).setBackground('#e8f0fe');
+        sheet.getRange(currentRow, 1, 1, headers.length).setFontWeight('bold');
+        currentRow++;
+        
+        // Добавляем данные раздела
+        sectionData.forEach(row => {
+          const rowData = [
+            section.key,
+            row.placementType || '',
+            row.site || '',
+            row.product || '',
+            row.link || '',
+            (row.text || '').substring(0, 100) + (row.text && row.text.length > 100 ? '...' : ''),
+            row.date || '',
+            row.author || '',
+            row.views || 0,
+            row.engagement || 0
+          ];
+          
+          sheet.getRange(currentRow, 1, 1, rowData.length).setValues([rowData]);
+          currentRow++;
+        });
+        
+        currentRow++; // Пустая строка между разделами
+      }
+    });
+    
+    // Добавляем итоговую строку
+    const stats = processedData.statistics || {};
+    const totalData = [
+      'ИТОГО',
+      '',
+      `Всего площадок: ${(processedData.reviews?.length || 0) + (processedData.targeted?.length || 0) + (processedData.social?.length || 0)}`,
+      '',
+      '',
+      `Отзывов: ${stats.reviewsCount || 0}, Целевых: ${stats.targetedCount || 0}, Социальных: ${stats.socialCount || 0}`,
+      '',
+      '',
+      stats.totalViews || 0,
+      stats.totalEngagement || 0
+    ];
+    
+    // Добавляем пустую строку
+    sheet.getRange(currentRow, 1, 1, headers.length).setValues([Array(headers.length).fill('')]);
+    currentRow++;
+    
+    // Добавляем итоговую строку
+    const totalRange = sheet.getRange(currentRow, 1, 1, totalData.length);
+    totalRange.setValues([totalData]);
+    totalRange.setFontWeight('bold');
+    totalRange.setBackground('#e8f0fe');
+    
+    // Автоматическое изменение размера колонок
     sheet.autoResizeColumns(1, headers.length);
     
     console.log(`💾 Создан файл: ${fileName}`);
     console.log(`🔗 ID файла: ${spreadsheet.getId()}`);
+    console.log(`📊 Статистика: отзывов ${stats.reviewsCount}, целевых ${stats.targetedCount}, социальных ${stats.socialCount}`);
+    console.log(`📈 Просмотры: ${stats.totalViews}, вовлечение: ${stats.totalEngagement}`);
     
     return spreadsheet.getId();
     
