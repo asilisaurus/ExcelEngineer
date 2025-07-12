@@ -192,7 +192,7 @@ class FinalMonthlyReportProcessor {
   }
 
   /**
-   * Обработка данных
+   * Обработка данных (ИСПРАВЛЕНО - версия 3 с типами постов)
    */
   processData(data) {
     // Сначала извлекаем статистику из исходных данных
@@ -207,6 +207,7 @@ class FinalMonthlyReportProcessor {
         totalCommentsTop20: 0,
         totalActiveDiscussions: 0,
         totalViews: sourceStats.totalViews || 0,
+        engagementShare: sourceStats.engagementShare || 0,
         platforms: new Set()
       }
     };
@@ -217,239 +218,355 @@ class FinalMonthlyReportProcessor {
     // Получаем фиксированный маппинг
     const columnMapping = this.getColumnMapping();
     
-    // Находим все разделы и их границы
+    // Определяем границы разделов
     const sections = this.findSectionBoundaries(data);
-    console.log('📂 Найденные разделы:', sections);
     
-    // Обрабатываем каждый раздел отдельно
-    for (const section of sections) {
-      const currentSection = section.type;
-      console.log(`🔄 Обработка раздела "${section.name}" (строки ${section.startRow + 1}-${section.endRow + 1})`);
+    if (sections.length === 0) {
+      console.error('❌ Не удалось определить разделы в данных');
+      return processedData;
+    }
+    
+    // Обрабатываем все строки данных
+    for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < data.length; i++) {
+      const row = data[i];
       
-      // Пропускаем пустые разделы
-      if (section.endRow < section.startRow) {
-        console.log(`⏭️ Раздел "${section.name}" пустой, пропускаем`);
+      // Пропускаем пустые строки
+      if (this.isEmptyRow(row)) {
         continue;
       }
       
-      // Обрабатываем строки в пределах раздела
-      for (let i = section.startRow; i <= section.endRow; i++) {
-        const row = data[i];
+      // Останавливаемся на статистике
+      if (this.isStatisticsRow(row)) {
+        break;
+      }
+      
+      // Определяем текущий раздел
+      let currentSection = null;
+      for (const section of sections) {
+        if (i >= section.startRow && i <= section.endRow) {
+          currentSection = section.type;
+          break;
+        }
+      }
+      
+      // Обрабатываем строку
+      const processedRow = this.processRow(row, currentSection, columnMapping);
+      
+      if (processedRow) {
+        processedRows++;
         
-        // Пропускаем заголовки разделов и пустые строки
-        if (this.isSectionHeader(row) || this.isEmptyRow(row)) {
-          skippedRows++;
-          continue;
+        // Добавляем платформу в статистику
+        if (processedRow.platform) {
+          processedData.statistics.platforms.add(processedRow.platform);
         }
         
-        // Пропускаем строки статистики
-        if (this.isStatisticsRow(row)) {
-          skippedRows++;
-          continue;
-        }
+        // Распределяем по разделам на основе типа записи
+        const recordType = processedRow.recordType || currentSection;
         
-        // Обрабатываем строку данных
-        const record = this.processRow(row, currentSection, columnMapping);
-        if (record) {
+        if (recordType === 'reviews') {
+          processedData.reviews.push(processedRow);
+          processedData.statistics.totalReviews++;
+        } else if (recordType === 'commentsTop20') {
+          processedData.commentsTop20.push(processedRow);
+          processedData.statistics.totalCommentsTop20++;
+        } else if (recordType === 'activeDiscussions') {
+          processedData.activeDiscussions.push(processedRow);
+          processedData.statistics.totalActiveDiscussions++;
+        } else {
+          // Если тип не определен, используем текущий раздел
           if (currentSection === 'reviews') {
-            processedData.reviews.push(record);
+            processedData.reviews.push(processedRow);
             processedData.statistics.totalReviews++;
           } else if (currentSection === 'commentsTop20') {
-            processedData.commentsTop20.push(record);
+            processedData.commentsTop20.push(processedRow);
             processedData.statistics.totalCommentsTop20++;
           } else if (currentSection === 'activeDiscussions') {
-            processedData.activeDiscussions.push(record);
+            processedData.activeDiscussions.push(processedRow);
             processedData.statistics.totalActiveDiscussions++;
           }
-          
-          // Если общие просмотры не заданы из источника, суммируем из записей
-          if (!sourceStats.totalViews && record.views) {
-            processedData.statistics.totalViews += record.views;
-          }
-          
-          if (record.platform) {
-            processedData.statistics.platforms.add(record.platform);
-          }
-          processedRows++;
-        } else {
-          skippedRows++;
         }
+      } else {
+        skippedRows++;
       }
     }
     
-    // Обновляем глобальную статистику
-    this.stats.reviewsCount = processedData.statistics.totalReviews;
-    this.stats.commentsTop20Count = processedData.statistics.totalCommentsTop20;
-    this.stats.activeDiscussionsCount = processedData.statistics.totalActiveDiscussions;
-    this.stats.totalViews = processedData.statistics.totalViews;
-    this.stats.engagementShare = sourceStats.engagementShare;
+    // Если просмотры не были извлечены из статистики, считаем из данных
+    if (processedData.statistics.totalViews === 0) {
+      let totalViews = 0;
+      
+      // Суммируем просмотры из всех разделов
+      [...processedData.reviews, ...processedData.commentsTop20, ...processedData.activeDiscussions]
+        .forEach(item => {
+          if (item.views && item.views > 0) {
+            totalViews += item.views;
+          }
+        });
+      
+      if (totalViews > 0) {
+        processedData.statistics.totalViews = totalViews;
+        console.log(`📊 Просмотры подсчитаны из записей: ${totalViews}`);
+      }
+    }
+    
+    // Рассчитываем долю вовлечения если не была извлечена
+    if (processedData.statistics.engagementShare === 0 && processedData.statistics.totalActiveDiscussions > 0) {
+      // Считаем записи с вовлечением (где есть значение в колонке engagement)
+      let engagedCount = 0;
+      processedData.activeDiscussions.forEach(item => {
+        if (item.engagement && item.engagement.trim() !== '' && item.engagement !== '0') {
+          engagedCount++;
+        }
+      });
+      
+      if (engagedCount > 0) {
+        processedData.statistics.engagementShare = engagedCount / processedData.statistics.totalActiveDiscussions;
+        console.log(`📊 Доля вовлечения рассчитана: ${(processedData.statistics.engagementShare * 100).toFixed(0)}%`);
+      }
+    }
     
     console.log(`📊 Обработано: ${processedRows} строк данных, пропущено: ${skippedRows} строк`);
     console.log(`📊 Результат: ${processedData.statistics.totalReviews} отзывов, ${processedData.statistics.totalCommentsTop20} топ-20, ${processedData.statistics.totalActiveDiscussions} обсуждений`);
-    console.log(`📊 Общие просмотры: ${processedData.statistics.totalViews}`);
     
     return processedData;
   }
 
   /**
-   * Поиск границ разделов
+   * Поиск границ разделов (ИСПРАВЛЕНО - определение по типу поста)
    */
   findSectionBoundaries(data) {
     const sections = [];
     
-    // Сначала находим все заголовки разделов
-    const sectionHeaders = [];
+    // Пропускаем заголовки и метаданные
+    let currentRow = CONFIG.STRUCTURE.dataStartRow - 1;
+    let inDataSection = false;
+    let currentSection = null;
+    let sectionStart = -1;
     
+    // Временные массивы для хранения строк по типам
+    const reviewsRows = [];
+    const commentsRows = [];
+    const discussionsRows = [];
+    
+    console.log('🔍 Анализ структуры данных для определения разделов...');
+    
+    // Проходим по всем строкам данных
     for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < data.length; i++) {
       const row = data[i];
+      
+      // Пропускаем пустые строки
+      if (this.isEmptyRow(row)) continue;
+      
+      // Останавливаемся на статистике
+      if (this.isStatisticsRow(row)) break;
+      
+      // Проверяем заголовки разделов
       const firstCell = String(row[0] || '').toLowerCase().trim();
       
-      // Пропускаем строки статистики
-      if (this.isStatisticsRow(row)) {
-        break;
+      // Если это заголовок "Отзывы" в начале данных
+      if (i < 10 && (firstCell === 'отзывы' || firstCell.includes('отзывы'))) {
+        console.log(`📂 Найден заголовок "Отзывы" в строке ${i + 1}`);
+        continue;
       }
       
-      // Определяем тип раздела
-      let sectionType = null;
-      let sectionName = '';
-      
-      if (firstCell === 'отзывы' || (firstCell.includes('отзывы') && !firstCell.includes('топ-20') && !firstCell.includes('обсуждения') && !firstCell.includes('количество'))) {
-        sectionType = 'reviews';
-        sectionName = 'Отзывы';
-      } else if (firstCell.includes('комментарии топ-20') || firstCell.includes('топ-20 выдачи')) {
-        sectionType = 'commentsTop20';
-        sectionName = 'Комментарии Топ-20';
-      } else if (firstCell.includes('активные обсуждения') || firstCell.includes('мониторинг')) {
-        sectionType = 'activeDiscussions';
-        sectionName = 'Активные обсуждения';
+      // Пропускаем заголовки разделов в конце файла (после строки 600)
+      if (i > 600 && (firstCell.includes('комментарии') || firstCell.includes('обсуждения'))) {
+        console.log(`⏭️ Пропускаем заголовок в конце файла: "${firstCell}" в строке ${i + 1}`);
+        continue;
       }
       
-      if (sectionType) {
-        sectionHeaders.push({
-          type: sectionType,
-          name: sectionName,
-          headerRow: i
-        });
-        console.log(`📂 Найден заголовок раздела "${sectionName}" в строке ${i + 1}`);
+      // Определяем тип строки по колонке "Тип поста" (индекс 13)
+      const postTypeIndex = 13;
+      let postType = '';
+      
+      if (row.length > postTypeIndex && row[postTypeIndex]) {
+        postType = String(row[postTypeIndex]).trim().toUpperCase();
       }
-    }
-    
-    // Теперь определяем границы каждого раздела
-    for (let i = 0; i < sectionHeaders.length; i++) {
-      const currentHeader = sectionHeaders[i];
-      const nextHeader = sectionHeaders[i + 1];
       
-      const startRow = currentHeader.headerRow + 1;
-      let endRow;
-      
-      if (nextHeader) {
-        endRow = nextHeader.headerRow - 1;
+      // Классифицируем строку по типу
+      if (postType === 'ОС' || postType === 'О.С.') {
+        reviewsRows.push(i);
+      } else if (postType === 'ЦС' || postType === 'Ц.С.') {
+        commentsRows.push(i);
+      } else if (postType === 'ПС' || postType === 'П.С.') {
+        discussionsRows.push(i);
       } else {
-        endRow = data.length - 1;
+        // Пробуем определить по тексту
+        const textIndex = 4; // колонка "Текст сообщения"
+        const platformIndex = 1; // колонка "Площадка"
         
-        // Ищем начало статистики
-        for (let j = startRow; j < data.length; j++) {
-          if (this.isStatisticsRow(data[j]) || this.isEmptyRow(data[j])) {
-            let hasDataAfter = false;
-            for (let k = j + 1; k < Math.min(j + 5, data.length); k++) {
-              if (!this.isEmptyRow(data[k]) && !this.isStatisticsRow(data[k])) {
-                hasDataAfter = true;
-                break;
-              }
-            }
-            
-            if (!hasDataAfter) {
-              endRow = j - 1;
-              break;
-            }
+        if ((row[textIndex] && String(row[textIndex]).trim().length > 10) ||
+            (row[platformIndex] && String(row[platformIndex]).trim().length > 0)) {
+          // Это строка с данными, но тип не определен
+          // Определяем по контексту (какой раздел сейчас)
+          if (reviewsRows.length > 0 && commentsRows.length === 0) {
+            reviewsRows.push(i);
+          } else if (commentsRows.length > 0 && discussionsRows.length === 0) {
+            commentsRows.push(i);
+          } else {
+            discussionsRows.push(i);
           }
         }
       }
+    }
+    
+    // Создаем разделы на основе найденных строк
+    if (reviewsRows.length > 0) {
+      sections.push({
+        type: 'reviews',
+        name: 'Отзывы',
+        startRow: Math.min(...reviewsRows),
+        endRow: Math.max(...reviewsRows)
+      });
+    }
+    
+    if (commentsRows.length > 0) {
+      sections.push({
+        type: 'commentsTop20',
+        name: 'Комментарии Топ-20',
+        startRow: Math.min(...commentsRows),
+        endRow: Math.max(...commentsRows)
+      });
+    }
+    
+    if (discussionsRows.length > 0) {
+      sections.push({
+        type: 'activeDiscussions',
+        name: 'Активные обсуждения',
+        startRow: Math.min(...discussionsRows),
+        endRow: Math.max(...discussionsRows)
+      });
+    }
+    
+    // Если разделы не найдены по типу поста, используем эвристику
+    if (sections.length === 0) {
+      console.log('⚠️ Не удалось определить разделы по типу поста, используем эвристику...');
       
-      // Корректируем endRow, если раздел пустой
-      if (endRow < startRow) {
-        endRow = startRow - 1;
+      // Ищем первый заголовок "Отзывы"
+      let reviewsStart = -1;
+      for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < Math.min(20, data.length); i++) {
+        const firstCell = String(data[i][0] || '').toLowerCase().trim();
+        if (firstCell === 'отзывы' || firstCell.includes('отзывы')) {
+          reviewsStart = i + 1;
+          break;
+        }
       }
       
-      sections.push({
-        type: currentHeader.type,
-        name: currentHeader.name,
-        startRow: startRow,
-        endRow: endRow
-      });
-      
-      console.log(`📊 Раздел "${currentHeader.name}": строки ${startRow + 1}-${endRow + 1} (${Math.max(0, endRow - startRow + 1)} записей)`);
+      if (reviewsStart > 0) {
+        // Предполагаем стандартное распределение:
+        // ~22 отзыва, ~20 комментариев, остальное - обсуждения
+        const totalDataRows = data.length - reviewsStart - 10; // минус статистика
+        
+        sections.push({
+          type: 'reviews',
+          name: 'Отзывы', 
+          startRow: reviewsStart,
+          endRow: reviewsStart + 21 // ~22 строки
+        });
+        
+        sections.push({
+          type: 'commentsTop20',
+          name: 'Комментарии Топ-20',
+          startRow: reviewsStart + 22,
+          endRow: reviewsStart + 41 // ~20 строк
+        });
+        
+        sections.push({
+          type: 'activeDiscussions',
+          name: 'Активные обсуждения',
+          startRow: reviewsStart + 42,
+          endRow: data.length - 11 // до статистики
+        });
+      }
     }
+    
+    // Логируем результаты
+    console.log('� Найденные разделы:');
+    sections.forEach(section => {
+      const count = section.endRow - section.startRow + 1;
+      console.log(`   - ${section.name}: строки ${section.startRow + 1}-${section.endRow + 1} (${count} записей)`);
+    });
     
     return sections;
   }
 
   /**
-   * Обработка строки данных
+   * Обработка строки данных (ИСПРАВЛЕНО - версия 2)
    */
   processRow(row, currentSection, columnMapping) {
     try {
+      // Проверяем, что строка содержит данные
       if (!row || row.length === 0) {
         return null;
       }
 
-      const textIndex = columnMapping.text;
-      const platformIndex = columnMapping.platform;
+      // Пропускаем пустые строки
+      if (this.isEmptyRow(row)) {
+        return null;
+      }
+      
+      // Пропускаем заголовки разделов
+      const firstCell = String(row[0] || '').toLowerCase().trim();
+      if (firstCell.includes('отзывы') || 
+          firstCell.includes('комментарии') || 
+          firstCell.includes('обсуждения') ||
+          firstCell.includes('топ-20')) {
+        return null;
+      }
+
+      // Проверяем наличие значимых данных
+      const textIndex = columnMapping.text || 4;
+      const platformIndex = columnMapping.platform || 1;
+      const linkIndex = columnMapping.link || 2;
       
       const text = row[textIndex] ? String(row[textIndex]).trim() : '';
       const platform = row[platformIndex] ? String(row[platformIndex]).trim() : '';
+      const link = row[linkIndex] ? String(row[linkIndex]).trim() : '';
       
-      // Пропускаем строки без текста и платформы
-      if (!text && !platform) {
+      // Пропускаем строки без текста или платформы
+      if (!text && !platform && !link) {
         return null;
       }
       
-      // Пропускаем заголовки и служебные строки
-      const firstCell = String(row[0] || '').toLowerCase().trim();
-      if (firstCell === 'отзывы' || firstCell === 'комментарии топ-20 выдачи' || 
-          firstCell === 'активные обсуждения (мониторинг)' || firstCell === 'площадка') {
-        return null;
-      }
-
-      // Извлекаем данные
-      const extractedPlatform = this.extractPlatform(row, columnMapping);
-      const theme = this.extractTheme(row, columnMapping);
-      const textContent = this.extractText(row, columnMapping);
-      const extractedDate = this.extractDate(row, columnMapping);
-      const author = this.extractAuthor(row, columnMapping);
-      const views = this.extractViews(row, columnMapping);
-      const engagement = this.extractEngagement(row, columnMapping);
-      const link = this.extractLink(row, columnMapping);
+      // Определяем тип записи
+      let recordType = currentSection;
       
-      // Определяем тип поста
-      let type = 'ОС';
-      
-      const postTypeIndex = columnMapping.postType;
-      if (postTypeIndex !== undefined && row.length > postTypeIndex && row[postTypeIndex]) {
-        const postTypeValue = String(row[postTypeIndex]).trim().toUpperCase();
-        if (postTypeValue === 'ОС' || postTypeValue === 'О.С.' || postTypeValue === 'OC') {
-          type = 'ОС';
-        } else if (postTypeValue === 'ЦС' || postTypeValue === 'Ц.С.' || postTypeValue === 'TC') {
-          type = 'ЦС';
-        } else if (postTypeValue === 'ПС' || postTypeValue === 'П.С.' || postTypeValue === 'PC') {
-          type = 'ПС';
+      // Проверяем колонку "Тип поста"
+      const postTypeIndex = columnMapping.postType || 13;
+      if (row[postTypeIndex]) {
+        const postType = String(row[postTypeIndex]).trim().toUpperCase();
+        
+        if (postType === 'ОС' || postType === 'О.С.') {
+          recordType = 'reviews';
+        } else if (postType === 'ЦС' || postType === 'Ц.С.') {
+          recordType = 'commentsTop20';
+        } else if (postType === 'ПС' || postType === 'П.С.') {
+          recordType = 'activeDiscussions';
         }
       }
 
-      return {
-        platform: extractedPlatform,
-        theme,
-        text: textContent,
-        date: extractedDate,
-        author,
-        views,
-        engagement,
-        type,
-        link,
-        section: currentSection
+      // Извлекаем данные из строки
+      const processedRow = {
+        platform: platform,
+        theme: row[columnMapping.theme || 3] ? String(row[columnMapping.theme || 3]).trim() : '',
+        link: link,
+        text: text,
+        date: this.extractDate(row, columnMapping),
+        author: row[columnMapping.author || 7] ? String(row[columnMapping.author || 7]).trim() : '',
+        views: this.extractViews(row, columnMapping),
+        engagement: row[columnMapping.engagement || 12] ? String(row[columnMapping.engagement || 12]).trim() : '',
+        postType: row[postTypeIndex] ? String(row[postTypeIndex]).trim() : '',
+        recordType: recordType
       };
-    } catch (error) {
-      console.warn(`⚠️ Ошибка обработки строки: ${error.message}`);
+
+      // Дополнительная валидация
+      if (!processedRow.text && !processedRow.platform) {
+        return null;
+      }
+
+      return processedRow;
+
+    } catch (e) {
+      console.error(`❌ Ошибка обработки строки: ${e.message}`);
       return null;
     }
   }
@@ -498,21 +615,28 @@ class FinalMonthlyReportProcessor {
     writeSection('Комментарии Топ-20 выдачи', processedData.commentsTop20);
     writeSection('Активные обсуждения (мониторинг)', processedData.activeDiscussions);
     
-    // Блок статистики
+    // 4. Блок статистики внизу (ИСПРАВЛЕНО)
     row += 2;
     sheet.getRange(row, 1).setValue('Суммарное количество просмотров');
-    sheet.getRange(row, 2).setValue(this.stats.totalViews || 0);
+    sheet.getRange(row, 2).setValue(processedData.statistics.totalViews || 0);
     row++;
     sheet.getRange(row, 1).setValue('Количество карточек товара (отзывы)');
-    sheet.getRange(row, 2).setValue(processedData.reviews.length);
+    sheet.getRange(row, 2).setValue(processedData.statistics.totalReviews || 0);
     row++;
     sheet.getRange(row, 1).setValue('Количество обсуждений (форумы, сообщества, комментарии к статьям)');
-    sheet.getRange(row, 2).setValue(processedData.activeDiscussions.length);
+    const totalDiscussions = (processedData.statistics.totalActiveDiscussions || 0) + 
+                           (processedData.statistics.totalCommentsTop20 || 0);
+    sheet.getRange(row, 2).setValue(totalDiscussions);
     row++;
     sheet.getRange(row, 1).setValue('Доля обсуждений с вовлечением в диалог');
-    const engagementValue = this.stats.engagementShare || 0;
-    sheet.getRange(row, 2).setValue(engagementValue > 0 ? engagementValue + '%' : '0%');
-    sheet.getRange(row - 3, 1, 4, 2).setFontWeight('bold');
+    const engagementValue = processedData.statistics.engagementShare || 0;
+    // Форматируем как проценты
+    if (engagementValue > 0) {
+      sheet.getRange(row, 2).setValue(engagementValue);
+      sheet.getRange(row, 2).setNumberFormat("0%");
+    } else {
+      sheet.getRange(row, 2).setValue(0);
+    }
     
     // Форматирование
     sheet.autoResizeColumns(1, tableHeaders.length);
@@ -595,7 +719,7 @@ class FinalMonthlyReportProcessor {
   }
 
   /**
-   * Извлечение статистики из исходных данных
+   * Извлечение статистики из исходных данных (УЛУЧШЕНО)
    */
   extractStatisticsFromSourceData(data) {
     const stats = {
@@ -605,21 +729,55 @@ class FinalMonthlyReportProcessor {
       engagementShare: 0
     };
     
-    // Ищем блок статистики в конце файла
-    for (let i = data.length - 1; i >= Math.max(0, data.length - 20); i--) {
+    console.log('📊 Извлечение статистики из исходных данных...');
+    
+    // Ищем блок статистики в последних 20 строках файла
+    const startSearch = Math.max(0, data.length - 20);
+    
+    for (let i = startSearch; i < data.length; i++) {
       const row = data[i];
       if (!row || row.length === 0) continue;
       
       const firstCell = String(row[0] || '').toLowerCase().trim();
+      const secondCell = row[1] ? String(row[1]).trim() : '';
       
       // Ищем строку с общими просмотрами
       if (firstCell.includes('суммарное количество просмотров')) {
+        // Ищем число в строке
         for (let j = 1; j < row.length; j++) {
           if (row[j]) {
             const value = parseFloat(String(row[j]).replace(/[^\d]/g, ''));
             if (!isNaN(value) && value > 0) {
-              stats.totalViews = value;
-              console.log(`📊 Найдены общие просмотры в исходных данных: ${value}`);
+              stats.totalViews = Math.floor(value);
+              console.log(`✅ Найдены общие просмотры: ${stats.totalViews}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Ищем количество карточек товара
+      if (firstCell.includes('количество карточек товара')) {
+        for (let j = 1; j < row.length; j++) {
+          if (row[j]) {
+            const value = parseFloat(String(row[j]).replace(/[^\d]/g, ''));
+            if (!isNaN(value) && value >= 0) {
+              stats.totalCards = Math.floor(value);
+              console.log(`✅ Найдено карточек товара: ${stats.totalCards}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Ищем количество обсуждений
+      if (firstCell.includes('количество обсуждений')) {
+        for (let j = 1; j < row.length; j++) {
+          if (row[j]) {
+            const value = parseFloat(String(row[j]).replace(/[^\d]/g, ''));
+            if (!isNaN(value) && value >= 0) {
+              stats.totalDiscussions = Math.floor(value);
+              console.log(`✅ Найдено обсуждений: ${stats.totalDiscussions}`);
               break;
             }
           }
@@ -630,17 +788,53 @@ class FinalMonthlyReportProcessor {
       if (firstCell.includes('доля обсуждений с вовлечением')) {
         for (let j = 1; j < row.length; j++) {
           if (row[j]) {
-            let value = String(row[j]).trim();
-            if (value.includes('%')) {
-              value = value.replace('%', '');
+            const cellValue = String(row[j]).trim();
+            let value = 0;
+            
+            // Проверяем разные форматы
+            if (cellValue.includes('%')) {
+              // Формат с процентом: "20%"
+              value = parseFloat(cellValue.replace('%', '')) / 100;
+            } else if (cellValue.includes('.')) {
+              // Десятичный формат: "0.20"
+              value = parseFloat(cellValue);
+            } else {
+              // Целое число: "20" (предполагаем проценты)
+              const num = parseFloat(cellValue);
+              if (!isNaN(num)) {
+                value = num > 1 ? num / 100 : num;
+              }
             }
-            const floatValue = parseFloat(value);
-            if (!isNaN(floatValue)) {
-              stats.engagementShare = floatValue > 1 ? floatValue : floatValue * 100;
+            
+            if (!isNaN(value) && value >= 0) {
+              stats.engagementShare = value;
+              console.log(`✅ Найдена доля вовлечения: ${(value * 100).toFixed(0)}%`);
               break;
             }
           }
         }
+      }
+    }
+    
+    // Альтернативный поиск если основной не сработал
+    if (stats.totalViews === 0) {
+      // Суммируем просмотры из колонки просмотров
+      let sumViews = 0;
+      const viewsIndex = 11; // колонка просмотров
+      
+      for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < Math.min(data.length - 10, 650); i++) {
+        const row = data[i];
+        if (row && row[viewsIndex]) {
+          const views = this.extractViews(row, this.getColumnMapping());
+          if (views > 0) {
+            sumViews += views;
+          }
+        }
+      }
+      
+      if (sumViews > 0) {
+        stats.totalViews = sumViews;
+        console.log(`📊 Просмотры подсчитаны из данных: ${sumViews}`);
       }
     }
     
