@@ -123,17 +123,17 @@ class FinalGoogleAppsScriptTester {
           // Проверяем, есть ли соответствующий эталонный лист
           const referenceSheet = this.findReferenceSheet(monthInfo);
           
-          sourceData[monthInfo.key] = {
-            sheet: sheet,
-            data: data,
-            monthInfo: monthInfo,
-            referenceSheet: referenceSheet
-          };
-          
+          // ДОБАВЛЯЕМ ТОЛЬКО ЛИСТЫ С ЭТАЛОНАМИ (февраль-май 2025)
           if (referenceSheet) {
+            sourceData[monthInfo.key] = {
+              sheet: sheet,
+              data: data,
+              monthInfo: monthInfo,
+              referenceSheet: referenceSheet
+            };
             console.log(`✅ Лист "${sheetName}" -> ${monthInfo.name} ${monthInfo.year} (есть эталон)`);
           } else {
-            console.log(`⚠️ Лист "${sheetName}" -> ${monthInfo.name} ${monthInfo.year} (нет эталона)`);
+            console.log(`⏭️ Пропускаем "${sheetName}" -> ${monthInfo.name} ${monthInfo.year} (нет эталона)`);
           }
         }
       }
