@@ -1,13 +1,14 @@
 /**
- * 🚀 ОКОНЧАТЕЛЬНЫЙ ПРОЦЕССОР V14.1
- * Правильно обрабатывает ВСЕ 674 записи без потерь
+ * 🚀 ОКОНЧАТЕЛЬНЫЙ ПРОЦЕССОР V14.2
+ * Правильно обрабатывает ВСЕ записи без потерь
  * 
- * Изменения в V14.1:
+ * Изменения в V14.2:
  * - Исправлено определение границ разделов
- * - НЕ теряет 630+ записей обсуждений
- * - Правильно разделяет комментарии топ-20 и активные обсуждения
- * - Учитывает структуру Апреля где все помечено как "Комментарии в обсуждениях"
+ * - НЕ теряет записи обсуждений
+ * - Правильно находит ровно 20 комментариев топ-20
+ * - Учитывает пустые строки при подсчете
  * - Убрана приставка "@" из колонки "Тема"
+ * - Исправлен подсчет просмотров
  */
 
 // ==================== КОНФИГУРАЦИЯ ====================
@@ -274,21 +275,34 @@ function findSectionBoundaries(data) {
     }
   }
   
-  // Специальная логика для Апреля
-  // Если нашли ТОП-20 но не нашли активные обсуждения
-  if (sections.commentsTop20.start > 0 && sections.discussions.start === -1) {
-    // Комментарии топ-20 это следующие 20 записей после заголовка
-    sections.commentsTop20.end = sections.commentsTop20.start + 19;
-    
-    // Все остальное - активные обсуждения
-    sections.discussions.start = sections.commentsTop20.end + 1;
-    sections.discussions.end = data.length;
-    
-    console.log('📍 Автоматическое разделение:');
-    console.log('   - Комментарии топ-20: строки ' + sections.commentsTop20.start + 
-                '-' + sections.commentsTop20.end);
-    console.log('   - Активные обсуждения: с строки ' + sections.discussions.start);
-  }
+     // Специальная логика для Апреля
+   // Если нашли ТОП-20 но не нашли активные обсуждения
+   if (sections.commentsTop20.start > 0 && sections.discussions.start === -1) {
+     // Найдем ровно 20 непустых записей после заголовка
+     var count = 0;
+     var currentRow = sections.commentsTop20.start;
+     
+     for (var idx = sections.commentsTop20.start - 1; idx < data.length && count < 20; idx++) {
+       var row = data[idx];
+       // Проверяем что это не пустая строка и не заголовок
+       if (row && row[1] && String(row[1]).trim() !== '' && 
+           !isHeaderRow(String(row[0] || '').trim())) {
+         count++;
+         currentRow = idx + 1;
+       }
+     }
+     
+     sections.commentsTop20.end = currentRow;
+     
+     // Все остальное - активные обсуждения
+     sections.discussions.start = currentRow + 1;
+     sections.discussions.end = data.length;
+     
+     console.log('📍 Автоматическое разделение:');
+     console.log('   - Комментарии топ-20: строки ' + sections.commentsTop20.start + 
+                 '-' + sections.commentsTop20.end + ' (найдено ' + count + ' записей)');
+     console.log('   - Активные обсуждения: с строки ' + sections.discussions.start);
+   }
   
   // Если не нашли четких границ, используем стандартную логику
   if (sections.reviews.start === -1) {
