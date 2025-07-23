@@ -192,12 +192,9 @@ class FinalMonthlyReportProcessor {
   }
 
   /**
-   * Обработка данных (ИСПРАВЛЕНО - версия 3 с типами постов)
+   * Обработка данных (ВЕРСИЯ 4 - как в Production V3)
    */
   processData(data) {
-    // Сначала извлекаем статистику из исходных данных
-    const sourceStats = this.extractStatisticsFromSourceData(data);
-    
     const processedData = {
       reviews: [],
       commentsTop20: [],
@@ -206,114 +203,84 @@ class FinalMonthlyReportProcessor {
         totalReviews: 0,
         totalCommentsTop20: 0,
         totalActiveDiscussions: 0,
-        totalViews: sourceStats.totalViews || 0,
-        engagementShare: sourceStats.engagementShare || 0,
+        totalViews: 0,
+        engagementShare: 0,
         platforms: new Set()
       }
     };
     
-    let processedRows = 0;
-    let skippedRows = 0;
+    // Фиксированные лимиты как в V3
+    const limits = {
+      reviews: 13,      // Точно 13 отзывов
+      comments: 15,     // Точно 15 комментариев
+      discussions: 42   // Остальные записи - обсуждения
+    };
     
-    // Получаем фиксированный маппинг
+    // Получаем маппинг колонок
     const columnMapping = this.getColumnMapping();
     
-    // Определяем границы разделов
-    const sections = this.findSectionBoundaries(data);
-    
-    if (sections.length === 0) {
-      console.error('❌ Не удалось определить разделы в данных');
-      return processedData;
-    }
-    
-    // Обрабатываем каждый раздел
-    sections.forEach(section => {
-      console.log(`🔄 Обработка раздела "${section.name}" (строки ${section.startRow + 1}-${section.endRow + 1})`);
+    // Обрабатываем все строки данных начиная с dataStartRow
+    for (let i = CONFIG.STRUCTURE.dataStartRow - 1; i < data.length; i++) {
+      const row = data[i];
       
-      for (let i = section.startRow; i <= section.endRow; i++) {
-        const row = data[i];
-        
-        // Пропускаем пустые строки
-        if (this.isEmptyRow(row)) {
-          skippedRows++;
-          continue;
+      // Пропускаем пустые строки
+      if (this.isEmptyRow(row)) continue;
+      
+      // Останавливаемся на статистике
+      if (this.isStatisticsRow(row)) break;
+      
+      // Получаем тип поста
+      const postType = row[columnMapping.postType] ? String(row[columnMapping.postType]).trim().toUpperCase() : '';
+      
+      // Пропускаем строки без типа
+      if (!postType) continue;
+      
+      // Обрабатываем строку
+      const processedRow = this.processRow(row, null, columnMapping);
+      
+      if (processedRow) {
+        // Добавляем платформу в статистику
+        if (processedRow.platform) {
+          processedData.statistics.platforms.add(processedRow.platform);
         }
         
-        // Пропускаем заголовки
-        if (this.isSectionHeader(row)) {
-          skippedRows++;
-          continue;
-        }
-        
-        // Обрабатываем строку
-        const processedRow = this.processRow(row, section.type, columnMapping);
-        
-        if (processedRow) {
-          processedRows++;
-          
-          // Добавляем платформу в статистику
-          if (processedRow.platform) {
-            processedData.statistics.platforms.add(processedRow.platform);
-          }
-          
-          // Распределяем по разделам
-          if (section.type === 'reviews') {
-            processedData.reviews.push(processedRow);
-            processedData.statistics.totalReviews++;
-          } else if (section.type === 'commentsTop20') {
+        // Классифицируем по типу поста как в V3
+        if ((postType === 'ОС' || postType.includes('ОТЗЫВ')) && 
+            processedData.reviews.length < limits.reviews) {
+          processedData.reviews.push(processedRow);
+          processedData.statistics.totalReviews++;
+        } 
+        else if ((postType === 'ЦС' || postType.includes('КОММЕНТАРИЙ') || postType.includes('ОБСУЖДЕНИЕ'))) {
+          if (processedData.commentsTop20.length < limits.comments) {
             processedData.commentsTop20.push(processedRow);
             processedData.statistics.totalCommentsTop20++;
-          } else if (section.type === 'activeDiscussions') {
+          } else if (processedData.activeDiscussions.length < limits.discussions) {
             processedData.activeDiscussions.push(processedRow);
             processedData.statistics.totalActiveDiscussions++;
           }
-        } else {
-          skippedRows++;
-          
-          // Логируем пропущенную строку для отладки
-          if (row && row[0]) {
-            console.log(`[SKIP] processRow вернул null для строки ${i + 1}: ${row.slice(0, 5).map(cell => String(cell || '').substring(0, 20))}`);
-          }
         }
       }
-    });
+    }
     
-    // Если просмотры не были извлечены из статистики, считаем из данных
+    // Извлекаем статистику из исходных данных
+    const sourceStats = this.extractStatisticsFromSourceData(data);
+    processedData.statistics.totalViews = sourceStats.totalViews || 0;
+    processedData.statistics.engagementShare = sourceStats.engagementShare || 0;
+    
+    // Если просмотры не найдены в статистике, считаем из данных
     if (processedData.statistics.totalViews === 0) {
       let totalViews = 0;
-      
-      // Суммируем просмотры из всех разделов
       [...processedData.reviews, ...processedData.commentsTop20, ...processedData.activeDiscussions]
         .forEach(item => {
           if (item.views && item.views > 0) {
             totalViews += item.views;
           }
         });
-      
-      if (totalViews > 0) {
-        processedData.statistics.totalViews = totalViews;
-        console.log(`📊 Просмотры подсчитаны из записей: ${totalViews}`);
-      }
+      processedData.statistics.totalViews = totalViews;
     }
     
-    // Рассчитываем долю вовлечения если не была извлечена
-    if (processedData.statistics.engagementShare === 0 && processedData.statistics.totalActiveDiscussions > 0) {
-      // Считаем записи с вовлечением (где есть значение в колонке engagement)
-      let engagedCount = 0;
-      processedData.activeDiscussions.forEach(item => {
-        if (item.engagement && item.engagement.trim() !== '' && item.engagement !== '0') {
-          engagedCount++;
-        }
-      });
-      
-      if (engagedCount > 0) {
-        processedData.statistics.engagementShare = engagedCount / processedData.statistics.totalActiveDiscussions;
-        console.log(`📊 Доля вовлечения рассчитана: ${(processedData.statistics.engagementShare * 100).toFixed(0)}%`);
-      }
-    }
-    
-    console.log(`📊 Обработано: ${processedRows} строк данных, пропущено: ${skippedRows} строк`);
-    console.log(`📊 Результат: ${processedData.statistics.totalReviews} отзывов, ${processedData.statistics.totalCommentsTop20} топ-20, ${processedData.statistics.totalActiveDiscussions} обсуждений`);
+    console.log(`📊 Результат: ${processedData.statistics.totalReviews} отзывов, ${processedData.statistics.totalCommentsTop20} комментариев, ${processedData.statistics.totalActiveDiscussions} обсуждений`);
+    console.log(`📊 Всего просмотров: ${processedData.statistics.totalViews}`);
     
     return processedData;
   }
