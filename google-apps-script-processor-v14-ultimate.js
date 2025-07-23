@@ -1,12 +1,13 @@
 /**
- * 🚀 ОКОНЧАТЕЛЬНЫЙ ПРОЦЕССОР V14
+ * 🚀 ОКОНЧАТЕЛЬНЫЙ ПРОЦЕССОР V14.1
  * Правильно обрабатывает ВСЕ 674 записи без потерь
  * 
- * Изменения в V14:
+ * Изменения в V14.1:
  * - Исправлено определение границ разделов
  * - НЕ теряет 630+ записей обсуждений
  * - Правильно разделяет комментарии топ-20 и активные обсуждения
  * - Учитывает структуру Апреля где все помечено как "Комментарии в обсуждениях"
+ * - Убрана приставка "@" из колонки "Тема"
  */
 
 // ==================== КОНФИГУРАЦИЯ ====================
@@ -49,7 +50,7 @@ var CONFIG = {
  */
 function processMonthlyReport() {
   try {
-    console.log('🚀 ULTIMATE PROCESSOR V14 - Начало обработки');
+         console.log('🚀 ULTIMATE PROCESSOR V14.1 - Начало обработки');
     
     var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = spreadsheet.getActiveSheet();
@@ -165,21 +166,21 @@ function processAprilDataCorrectly(data) {
     // Извлекаем просмотры ТОЛЬКО из колонок J, K, L
     var views = extractViewsFromColumns(row);
     
-    // Создаем запись
-    var processedRow = {
-      platform: platform,
-      theme: row[CONFIG.COLUMNS.link] ? 
-             '@' + String(row[CONFIG.COLUMNS.link]).trim() : '',
-      text: text,
-      date: extractDateFromValue(row[CONFIG.COLUMNS.date]),
-      author: row[CONFIG.COLUMNS.nick] ? 
-              String(row[CONFIG.COLUMNS.nick]).trim() : '',
-      views: views,
-      engagement: row[CONFIG.COLUMNS.engagement] ? 
-                  String(row[CONFIG.COLUMNS.engagement]).trim() : '',
-      postType: row[CONFIG.COLUMNS.postType] ? 
-                String(row[CONFIG.COLUMNS.postType]).trim() : ''
-    };
+         // Создаем запись
+     var processedRow = {
+       platform: platform,
+       theme: row[CONFIG.COLUMNS.link] ? 
+              String(row[CONFIG.COLUMNS.link]).trim() : '',
+       text: text,
+       date: extractDateFromValue(row[CONFIG.COLUMNS.date]),
+       author: row[CONFIG.COLUMNS.nick] ? 
+               String(row[CONFIG.COLUMNS.nick]).trim() : '',
+       views: views,
+       engagement: row[CONFIG.COLUMNS.engagement] ? 
+                   String(row[CONFIG.COLUMNS.engagement]).trim() : '',
+       postType: row[CONFIG.COLUMNS.postType] ? 
+                 String(row[CONFIG.COLUMNS.postType]).trim() : ''
+     };
     
     result.statistics.totalProcessed++;
     if (views === 0) {
@@ -623,7 +624,7 @@ function showMessage(title, message) {
  */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('📊 Ultimate процессор V14')
+         .createMenu('📊 Ultimate процессор V14.1')
     .addItem('🚀 Обработать текущий лист', 'processMonthlyReport')
     .addItem('📊 Показать структуру данных', 'showDataStructure')
     .addToUi();
