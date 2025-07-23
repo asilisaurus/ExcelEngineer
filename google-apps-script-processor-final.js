@@ -337,10 +337,12 @@ class FinalMonthlyReportProcessor {
       const row = data[i];
       if (!row || row.length === 0) continue;
       
+      // Проверяем первые две колонки на наличие заголовков
       const firstCell = String(row[0] || '').toLowerCase().trim();
+      const secondCell = row.length > 1 ? String(row[1] || '').toLowerCase().trim() : '';
       
       // Ищем заголовок "Отзывы"
-      if (reviewsHeaderRow === -1 && firstCell === 'отзывы') {
+      if (reviewsHeaderRow === -1 && (firstCell === 'отзывы' || secondCell === 'отзывы')) {
         reviewsHeaderRow = i;
         console.log(`📂 Найден заголовок "Отзывы" в строке ${i + 1}`);
       }
@@ -348,14 +350,19 @@ class FinalMonthlyReportProcessor {
       else if (commentsHeaderRow === -1 && 
                (firstCell.includes('комментарии топ-20') || 
                 firstCell.includes('комментарии топ 20') ||
-                firstCell === 'комментарии топ-20 выдачи')) {
+                firstCell === 'комментарии топ-20 выдачи' ||
+                secondCell.includes('комментарии топ-20') || 
+                secondCell.includes('комментарии топ 20') ||
+                secondCell === 'комментарии топ-20 выдачи')) {
         commentsHeaderRow = i;
         console.log(`📂 Найден заголовок "Комментарии Топ-20" в строке ${i + 1}`);
       }
       // Ищем заголовок "Активные обсуждения"
       else if (discussionsHeaderRow === -1 && 
                (firstCell.includes('активные обсуждения') || 
-                firstCell === 'активные обсуждения (мониторинг)')) {
+                firstCell === 'активные обсуждения (мониторинг)' ||
+                secondCell.includes('активные обсуждения') || 
+                secondCell === 'активные обсуждения (мониторинг)')) {
         discussionsHeaderRow = i;
         console.log(`📂 Найден заголовок "Активные обсуждения" в строке ${i + 1}`);
       }
@@ -488,14 +495,12 @@ class FinalMonthlyReportProcessor {
       // Проверяем наличие значимых данных
       const textIndex = columnMapping.text || 4;
       const platformIndex = columnMapping.platform || 1;
-      const linkIndex = columnMapping.link || 2;
       
       const text = row[textIndex] ? String(row[textIndex]).trim() : '';
       const platform = row[platformIndex] ? String(row[platformIndex]).trim() : '';
-      const link = row[linkIndex] ? String(row[linkIndex]).trim() : '';
       
-      // Пропускаем строки без текста или платформы
-      if (!text && !platform && !link) {
+      // Пропускаем строки без текста и платформы
+      if (!text && !platform) {
         return null;
       }
       
@@ -516,11 +521,10 @@ class FinalMonthlyReportProcessor {
         }
       }
 
-      // Извлекаем данные из строки
+      // Извлекаем данные из строки (8 колонок, без link)
       const processedRow = {
         platform: platform,
         theme: row[columnMapping.theme || 3] ? String(row[columnMapping.theme || 3]).trim() : '',
-        link: link,
         text: text,
         date: this.extractDate(row, columnMapping),
         author: row[columnMapping.author || 7] ? String(row[columnMapping.author || 7]).trim() : '',
@@ -573,7 +577,7 @@ class FinalMonthlyReportProcessor {
       row++;
       if (dataArr.length) {
         const safeData = dataArr.map(r => {
-          const arr = [r.platform, r.theme, r.text, r.date, r.author, r.views, r.engagement, r.type];
+          const arr = [r.platform, r.theme, r.text, r.date, r.author, r.views, r.engagement, r.postType];
           while (arr.length < tableHeaders.length) arr.push('');
           return arr.slice(0, tableHeaders.length);
         });
@@ -674,19 +678,33 @@ class FinalMonthlyReportProcessor {
   }
 
   /**
-   * Фиксированный маппинг колонок
+   * Фиксированный маппинг колонок (исправлено для 8 колонок)
    */
   getColumnMapping() {
+    // Колонки в исходном файле:
+    // 0: № (номер)
+    // 1: Площадка
+    // 2: Ссылка на сообщение
+    // 3: Тема
+    // 4: Текст сообщения
+    // 5: Категория
+    // 6: Дата
+    // 7: Ник
+    // 8-10: другие поля
+    // 11: Просмотры
+    // 12: Вовлечение
+    // 13: Тип поста
+    
     return {
-      platform: 1,
-      theme: 3,
-      text: 4,
-      date: 6,
-      author: 7,
-      views: 11,
-      engagement: 12,
-      postType: 13,
-      link: 2
+      platform: 1,    // Площадка
+      theme: 3,       // Тема
+      text: 4,        // Текст сообщения
+      date: 6,        // Дата
+      author: 7,      // Ник
+      views: 11,      // Просмотры
+      engagement: 12, // Вовлечение
+      postType: 13    // Тип поста
+      // link убран - не нужен в выходном файле
     };
   }
 
