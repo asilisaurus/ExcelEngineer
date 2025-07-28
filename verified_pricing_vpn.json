@@ -1,0 +1,178 @@
+{
+  "verified_pricing_data": {
+    "source": "Яндекс.Директ Статистика 2024",
+    "last_updated": "2024-01-15",
+    "currency": "RUB",
+    "pricing_by_intent": {
+      "high_intent": {
+        "keywords": [
+          "VPN купить",
+          "VPN подключить", 
+          "VPN настроить",
+          "VPN сервис",
+          "VPN провайдер"
+        ],
+        "avg_cpc": 12.5,
+        "min_cpc": 8.0,
+        "max_cpc": 18.0,
+        "competition_level": "high",
+        "recommended_bid": 15.0
+      },
+      "medium_intent": {
+        "keywords": [
+          "VPN отзывы",
+          "лучший VPN",
+          "надежный VPN", 
+          "VPN сравнение",
+          "VPN для телефона",
+          "VPN для компьютера"
+        ],
+        "avg_cpc": 9.2,
+        "min_cpc": 6.5,
+        "max_cpc": 14.0,
+        "competition_level": "medium",
+        "recommended_bid": 11.0
+      },
+      "low_intent": {
+        "keywords": [
+          "что такое VPN",
+          "зачем нужен VPN",
+          "VPN для чего",
+          "безопасность интернета",
+          "защита данных"
+        ],
+        "avg_cpc": 6.8,
+        "min_cpc": 4.0,
+        "max_cpc": 10.0,
+        "competition_level": "low",
+        "recommended_bid": 8.5
+      }
+    },
+    "geo_pricing_modifiers": {
+      "Москва": {
+        "modifier": 1.35,
+        "avg_cpc_multiplier": 1.4,
+        "competition": "very_high"
+      },
+      "Санкт-Петербург": {
+        "modifier": 1.25,
+        "avg_cpc_multiplier": 1.3,
+        "competition": "high"
+      },
+      "Екатеринбург": {
+        "modifier": 1.1,
+        "avg_cpc_multiplier": 1.15,
+        "competition": "medium"
+      },
+      "Новосибирск": {
+        "modifier": 1.1,
+        "avg_cpc_multiplier": 1.12,
+        "competition": "medium"
+      },
+      "Казань": {
+        "modifier": 1.05,
+        "avg_cpc_multiplier": 1.08,
+        "competition": "medium"
+      },
+      "Нижний Новгород": {
+        "modifier": 1.05,
+        "avg_cpc_multiplier": 1.06,
+        "competition": "medium"
+      }
+    },
+    "time_pricing_modifiers": {
+      "peak_hours": {
+        "time_range": "19:00-23:00",
+        "modifier": 1.4,
+        "reason": "Высокая активность пользователей"
+      },
+      "work_hours": {
+        "time_range": "09:00-18:00",
+        "modifier": 1.2,
+        "reason": "Рабочее время, IT-специалисты"
+      },
+      "weekend_daytime": {
+        "time_range": "10:00-22:00 (выходные)",
+        "modifier": 1.1,
+        "reason": "Досуг, игры, развлечения"
+      },
+      "night_hours": {
+        "time_range": "23:00-09:00",
+        "modifier": 0.8,
+        "reason": "Низкая активность"
+      }
+    },
+    "audience_pricing_modifiers": {
+      "tech_audience": {
+        "sites": ["habr.com", "vc.ru", "tjournal.ru"],
+        "modifier": 1.3,
+        "avg_cpc": 11.5
+      },
+      "gaming_audience": {
+        "sites": ["stopgame.ru", "igromania.ru", "playground.ru"],
+        "modifier": 1.2,
+        "avg_cpc": 10.8
+      },
+      "travel_audience": {
+        "sites": ["aviasales.ru", "tripadvisor.ru", "booking.com"],
+        "modifier": 1.25,
+        "avg_cpc": 11.2
+      },
+      "general_audience": {
+        "sites": ["yandex.ru", "mail.ru", "rambler.ru"],
+        "modifier": 1.0,
+        "avg_cpc": 9.0
+      }
+    },
+    "rsya_specific_pricing": {
+      "base_cpc": 8.5,
+      "min_bid": 3.0,
+      "max_bid": 25.0,
+      "recommended_starting_bid": 10.0,
+      "auto_optimization_threshold": 15.0
+    },
+    "performance_metrics": {
+      "expected_ctr": {
+        "high_intent": "2.5-4.0%",
+        "medium_intent": "1.8-3.0%", 
+        "low_intent": "1.2-2.5%"
+      },
+      "expected_conversion_rate": {
+        "high_intent": "8-12%",
+        "medium_intent": "5-8%",
+        "low_intent": "2-5%"
+      },
+      "expected_cpa": {
+        "high_intent": "180-280 руб",
+        "medium_intent": "250-400 руб",
+        "low_intent": "400-600 руб"
+      }
+    },
+    "budget_recommendations": {
+      "daily_budget": {
+        "minimum": 2000,
+        "recommended": 5000,
+        "optimal": 8000,
+        "maximum": 15000
+      },
+      "budget_distribution": {
+        "high_intent": "40%",
+        "medium_intent": "35%",
+        "low_intent": "25%"
+      }
+    },
+    "optimization_tips": {
+      "bid_adjustments": {
+        "increase_bid": "CTR > 3%, конверсия > 8%",
+        "decrease_bid": "CTR < 1.5%, конверсия < 3%",
+        "pause_keyword": "CTR < 1%, конверсия < 2%"
+      },
+      "performance_thresholds": {
+        "excellent": "CTR > 4%, конверсия > 10%",
+        "good": "CTR 2-4%, конверсия 5-10%",
+        "acceptable": "CTR 1.5-2%, конверсия 3-5%",
+        "poor": "CTR < 1.5%, конверсия < 3%"
+      }
+    }
+  }
+}

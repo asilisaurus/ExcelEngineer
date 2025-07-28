@@ -1,0 +1,304 @@
+{
+  "banner_creatives": {
+    "format_300x250": {
+      "banner_1": {
+        "title": "🔒 VPN в один клик",
+        "subtitle": "Пробный период 7 дней",
+        "description": "Настройка за 30 секунд через Telegram",
+        "cta": "Попробовать бесплатно",
+        "colors": {
+          "primary": "#2563eb",
+          "secondary": "#1e40af",
+          "accent": "#fbbf24"
+        },
+        "image_elements": [
+          "shield_icon",
+          "telegram_icon", 
+          "speed_indicator"
+        ]
+      },
+      "banner_2": {
+        "title": "⚡ Быстрый VPN",
+        "subtitle": "Стабильная скорость",
+        "description": "Безопасное соединение без лагов",
+        "cta": "Подключиться",
+        "colors": {
+          "primary": "#059669",
+          "secondary": "#047857",
+          "accent": "#10b981"
+        },
+        "image_elements": [
+          "lightning_icon",
+          "speed_graph",
+          "lock_icon"
+        ]
+      },
+      "banner_3": {
+        "title": "🌍 VPN для путешествий",
+        "subtitle": "Доступ к сайтам из любой страны",
+        "description": "Простая настройка через бота",
+        "cta": "Начать пробный период",
+        "colors": {
+          "primary": "#7c3aed",
+          "secondary": "#6d28d9",
+          "accent": "#a855f7"
+        },
+        "image_elements": [
+          "world_map",
+          "airplane_icon",
+          "telegram_icon"
+        ]
+      }
+    },
+    "format_300x600": {
+      "banner_1": {
+        "title": "🛡️ Защищенный интернет",
+        "subtitle": "Безопасность данных 24/7",
+        "description": "Подключение через Telegram-бот\nБез регистрации • Без логов",
+        "cta": "Защитить данные",
+        "features": [
+          "🔒 Шифрование данных",
+          "⚡ Высокая скорость", 
+          "🌍 Доступ к сайтам",
+          "📱 Работает на всех устройствах"
+        ],
+        "colors": {
+          "primary": "#dc2626",
+          "secondary": "#b91c1c",
+          "accent": "#f87171"
+        }
+      },
+      "banner_2": {
+        "title": "🎮 VPN для игр",
+        "subtitle": "Стабильный пинг без лагов",
+        "description": "Оптимизировано для игр\nПодключение за 30 секунд",
+        "cta": "Играть без лагов",
+        "features": [
+          "🎯 Низкий пинг",
+          "⚡ Стабильная скорость",
+          "🛡️ DDoS защита",
+          "📱 Поддержка всех платформ"
+        ],
+        "colors": {
+          "primary": "#ea580c",
+          "secondary": "#c2410c",
+          "accent": "#fb923c"
+        }
+      }
+    },
+    "format_728x90": {
+      "banner_1": {
+        "title": "🔒 VPN в один клик | Пробный период 7 дней",
+        "description": "Настройка за 30 секунд через Telegram • Безопасно • Быстро",
+        "cta": "Попробовать бесплатно",
+        "colors": {
+          "primary": "#2563eb",
+          "secondary": "#1e40af"
+        }
+      },
+      "banner_2": {
+        "title": "⚡ Быстрый VPN | Подключение через бота",
+        "description": "Стабильная скорость • Безопасное соединение • 24/7 поддержка",
+        "cta": "Подключиться сейчас",
+        "colors": {
+          "primary": "#059669",
+          "secondary": "#047857"
+        }
+      }
+    },
+    "format_320x50": {
+      "banner_1": {
+        "title": "🔒 VPN | Пробный период",
+        "cta": "Попробовать",
+        "colors": {
+          "primary": "#2563eb"
+        }
+      },
+      "banner_2": {
+        "title": "⚡ Быстрый VPN",
+        "cta": "Подключиться",
+        "colors": {
+          "primary": "#059669"
+        }
+      }
+    },
+    "animated_banners": {
+      "banner_1": {
+        "title": "🔒 VPN в один клик",
+        "animation": "pulse_effect",
+        "description": "Пробный период 7 дней",
+        "cta": "Попробовать бесплатно",
+        "duration": "15_seconds",
+        "colors": {
+          "primary": "#2563eb",
+          "accent": "#fbbf24"
+        }
+      },
+      "banner_2": {
+        "title": "⚡ Быстрый VPN",
+        "animation": "speed_lines",
+        "description": "Подключение за 30 секунд",
+        "cta": "Подключиться",
+        "duration": "12_seconds",
+        "colors": {
+          "primary": "#059669",
+          "accent": "#10b981"
+        }
+      }
+    },
+    "interactive_banners": {
+      "banner_1": {
+        "title": "🔒 VPN в один клик",
+        "interaction": "hover_effect",
+        "description": "Наведите для подробностей",
+        "hover_text": "Пробный период 7 дней\nНастройка через Telegram",
+        "cta": "Попробовать бесплатно",
+        "colors": {
+          "primary": "#2563eb",
+          "hover": "#1e40af"
+        }
+      }
+    },
+    "seasonal_banners": {
+      "summer_travel": {
+        "title": "🌍 VPN для отпуска",
+        "description": "Доступ к сайтам в любой стране",
+        "cta": "Подготовиться к поездке",
+        "season": "summer",
+        "colors": {
+          "primary": "#0891b2",
+          "secondary": "#0e7490"
+        }
+      },
+      "work_from_home": {
+        "title": "🏠 VPN для удаленной работы",
+        "description": "Безопасное подключение к офису",
+        "cta": "Настроить для работы",
+        "season": "all_year",
+        "colors": {
+          "primary": "#7c2d12",
+          "secondary": "#92400e"
+        }
+      }
+    },
+    "audience_specific_banners": {
+      "tech_audience": {
+        "title": "🔧 VPN для IT-специалистов",
+        "description": "Безопасный доступ к серверам",
+        "cta": "Настроить для работы",
+        "target_audience": "IT_professionals",
+        "colors": {
+          "primary": "#374151",
+          "secondary": "#1f2937"
+        }
+      },
+      "gaming_audience": {
+        "title": "🎮 VPN для геймеров",
+        "description": "Стабильный пинг в играх",
+        "cta": "Играть без лагов",
+        "target_audience": "gamers",
+        "colors": {
+          "primary": "#7c3aed",
+          "secondary": "#6d28d9"
+        }
+      },
+      "travel_audience": {
+        "title": "✈️ VPN для путешествий",
+        "description": "Доступ к сайтам за границей",
+        "cta": "Подготовиться к поездке",
+        "target_audience": "travelers",
+        "colors": {
+          "primary": "#0891b2",
+          "secondary": "#0e7490"
+        }
+      }
+    },
+    "urgency_banners": {
+      "limited_offer": {
+        "title": "⏰ Ограниченное предложение",
+        "description": "Пробный период только 7 дней",
+        "cta": "Успеть попробовать",
+        "urgency_type": "time_limit",
+        "colors": {
+          "primary": "#dc2626",
+          "secondary": "#b91c1c"
+        }
+      },
+      "exclusive_access": {
+        "title": "🔑 Эксклюзивный доступ",
+        "description": "Только для новых пользователей",
+        "cta": "Получить доступ",
+        "urgency_type": "exclusive",
+        "colors": {
+          "primary": "#ca8a04",
+          "secondary": "#a16207"
+        }
+      }
+    },
+    "benefit_focused_banners": {
+      "security": {
+        "title": "🛡️ Защита данных",
+        "description": "Ваши данные в безопасности",
+        "cta": "Защитить данные",
+        "benefit": "security",
+        "colors": {
+          "primary": "#059669",
+          "secondary": "#047857"
+        }
+      },
+      "speed": {
+        "title": "⚡ Высокая скорость",
+        "description": "Без потери скорости",
+        "cta": "Ускорить интернет",
+        "benefit": "speed",
+        "colors": {
+          "primary": "#2563eb",
+          "secondary": "#1e40af"
+        }
+      },
+      "simplicity": {
+        "title": "🎯 Простая настройка",
+        "description": "Подключение за 30 секунд",
+        "cta": "Настроить легко",
+        "benefit": "simplicity",
+        "colors": {
+          "primary": "#7c3aed",
+          "secondary": "#6d28d9"
+        }
+      }
+    }
+  },
+  "banner_optimization": {
+    "a_b_testing": {
+      "test_1": {
+        "variant_a": "banner_1_300x250",
+        "variant_b": "banner_2_300x250",
+        "metric": "CTR",
+        "duration": "7_days"
+      },
+      "test_2": {
+        "variant_a": "banner_1_728x90",
+        "variant_b": "banner_2_728x90", 
+        "metric": "conversion_rate",
+        "duration": "14_days"
+      }
+    },
+    "performance_tracking": {
+      "metrics": [
+        "impressions",
+        "clicks", 
+        "ctr",
+        "conversions",
+        "conversion_rate",
+        "cpa"
+      ],
+      "dimensions": [
+        "banner_id",
+        "format",
+        "audience_segment",
+        "time_of_day",
+        "day_of_week"
+      ]
+    }
+  }
+}

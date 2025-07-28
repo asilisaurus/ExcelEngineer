@@ -1,0 +1,149 @@
+{
+  "campaign_name": "VPN Pablo - РСЯ Авто",
+  "campaign_type": "RSYA_AUTO",
+  "budget": {
+    "daily_budget": 3000,
+    "currency": "RUB"
+  },
+  "targeting": {
+    "geo": {
+      "primary": ["Москва", "Санкт-Петербург"],
+      "secondary": ["Екатеринбург", "Новосибирск", "Казань", "Нижний Новгород"],
+      "bid_modifiers": {
+        "primary": 1.2,
+        "secondary": 1.1
+      }
+    },
+    "demographics": {
+      "age": ["18-24", "25-34", "35-44"],
+      "gender": ["male", "female"]
+    },
+    "interests": [
+      "Технологии и интернет",
+      "Безопасность в интернете",
+      "Путешествия",
+      "Игры",
+      "Удаленная работа",
+      "IT и программирование"
+    ]
+  },
+  "banners": [
+    {
+      "id": "banner_1",
+      "title": "🔒 VPN в один клик",
+      "text": "Пробный период 7 дней\nНастройка за 30 секунд",
+      "cta": "Попробовать бесплатно",
+      "image_url": "https://pablovpn.com/assets/banner1.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "high"
+    },
+    {
+      "id": "banner_2", 
+      "title": "⚡ Быстрый VPN",
+      "text": "Стабильная скорость\nБезопасное соединение",
+      "cta": "Подключиться",
+      "image_url": "https://pablovpn.com/assets/banner2.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "high"
+    },
+    {
+      "id": "banner_3",
+      "title": "🌍 VPN для путешествий", 
+      "text": "Доступ к сайтам из любой страны\nПростая настройка через бота",
+      "cta": "Начать пробный период",
+      "image_url": "https://pablovpn.com/assets/banner3.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "medium"
+    },
+    {
+      "id": "banner_4",
+      "title": "🛡️ Защищенный интернет",
+      "text": "Безопасность данных\n24/7 поддержка",
+      "cta": "Защитить данные",
+      "image_url": "https://pablovpn.com/assets/banner4.jpg", 
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "medium"
+    },
+    {
+      "id": "banner_5",
+      "title": "🎮 VPN для игр",
+      "text": "Стабильный пинг\nБез лагов",
+      "cta": "Играть без лагов",
+      "image_url": "https://pablovpn.com/assets/banner5.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi", 
+      "size": "300x250",
+      "priority": "low"
+    }
+  ],
+  "pricing": {
+    "base_cpc": 8.5,
+    "geo_modifiers": {
+      "Москва": 1.3,
+      "Санкт-Петербург": 1.25,
+      "Екатеринбург": 1.1,
+      "Новосибирск": 1.1,
+      "Казань": 1.05,
+      "Нижний Новгород": 1.05
+    },
+    "time_modifiers": {
+      "19:00-23:00": 1.4,
+      "09:00-18:00": 1.2,
+      "10:00-22:00_weekend": 1.1
+    },
+    "audience_modifiers": {
+      "high_intent": 1.5,
+      "medium_intent": 1.2,
+      "low_intent": 0.9
+    }
+  },
+  "audience_segments": {
+    "high_intent": {
+      "keywords": ["VPN купить", "VPN подключить", "VPN настроить", "VPN сервис"],
+      "sites": ["techcrunch.com", "wired.com", "theverge.com", "arstechnica.com"],
+      "bid_multiplier": 1.5
+    },
+    "medium_intent": {
+      "keywords": ["VPN отзывы", "лучший VPN", "надежный VPN", "VPN сравнение"],
+      "sites": ["habr.com", "vc.ru", "tjournal.ru", "dzen.ru"],
+      "bid_multiplier": 1.2
+    },
+    "low_intent": {
+      "keywords": ["что такое VPN", "зачем нужен VPN", "VPN для чего"],
+      "sites": ["wikipedia.org", "yandex.ru", "google.com"],
+      "bid_multiplier": 0.9
+    }
+  },
+  "exclusions": {
+    "negative_keywords": [
+      "скачать", "взлом", "пиратство", "торрент", "бесплатно",
+      "кряк", "активация", "лицензия", "настройка роутера",
+      "настройка сервера", "vpn сервер", "openvpn", "wireguard"
+    ],
+    "excluded_sites": [
+      "rutracker.org", "rutor.org", "nnmclub.to",
+      "softportal.com", "softpedia.com"
+    ]
+  },
+  "optimization": {
+    "auto_optimization": true,
+    "target_cpa": 250,
+    "target_roas": 400,
+    "min_impressions": 1000,
+    "min_clicks": 50,
+    "optimization_window": 7
+  },
+  "reporting": {
+    "metrics": [
+      "impressions", "clicks", "ctr", "cpc", "conversions",
+      "conversion_rate", "cpa", "roas", "revenue"
+    ],
+    "dimensions": [
+      "date", "geo", "audience_segment", "banner", "site_category"
+    ],
+    "frequency": "daily"
+  }
+}
