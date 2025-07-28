@@ -1,0 +1,261 @@
+{
+  "campaign_name": "VPN Pablo - РСЯ Авто (Улучшенная)",
+  "campaign_type": "RSYA_AUTO",
+  "budget": {
+    "daily_budget": 5000,
+    "currency": "RUB",
+    "budget_distribution": {
+      "high_intent_search": "30%",
+      "rsya_auto": "40%",
+      "retargeting": "20%",
+      "testing": "10%"
+    }
+  },
+  "targeting": {
+    "geo": {
+      "primary": ["Москва", "Санкт-Петербург"],
+      "secondary": ["Екатеринбург", "Новосибирск", "Казань", "Нижний Новгород"],
+      "bid_modifiers": {
+        "primary": 1.35,
+        "secondary": 1.1
+      }
+    },
+    "demographics": {
+      "age": ["18-24", "25-34", "35-44"],
+      "gender": ["male", "female"]
+    },
+    "interests": [
+      "Технологии и интернет",
+      "Безопасность в интернете", 
+      "Путешествия",
+      "Игры",
+      "Удаленная работа",
+      "IT и программирование",
+      "Кибербезопасность",
+      "Цифровая приватность"
+    ]
+  },
+  "banners": [
+    {
+      "id": "banner_1",
+      "title": "🔒 VPN в один клик",
+      "subtitle": "10 000+ активных пользователей",
+      "text": "120 ₽/месяц • Проверенный профессионалами\nНастройка за 30 секунд через Telegram",
+      "cta": "Попробовать бесплатно",
+      "image_url": "https://pablovpn.com/assets/banner1.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "high",
+      "usp_elements": [
+        "10 000+ пользователей",
+        "120 ₽/месяц",
+        "Проверенный профессионалами"
+      ]
+    },
+    {
+      "id": "banner_2", 
+      "title": "⚡ Быстрый VPN",
+      "subtitle": "10 000+ довольных клиентов",
+      "text": "Всего 120 ₽/месяц • Рекомендован IT-специалистами\nСтабильная скорость без лагов",
+      "cta": "Подключиться",
+      "image_url": "https://pablovpn.com/assets/banner2.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "high",
+      "usp_elements": [
+        "10 000+ клиентов",
+        "120 ₽/месяц",
+        "IT-специалисты рекомендуют"
+      ]
+    },
+    {
+      "id": "banner_3",
+      "title": "🌍 VPN для путешествий", 
+      "subtitle": "10 000+ активных пользователей",
+      "text": "120 ₽/месяц • Проверенный профессионалами\nДоступ к сайтам из любой страны",
+      "cta": "Начать пробный период",
+      "image_url": "https://pablovpn.com/assets/banner3.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x250",
+      "priority": "medium",
+      "usp_elements": [
+        "10 000+ пользователей",
+        "120 ₽/месяц",
+        "Проверенный профессионалами"
+      ]
+    },
+    {
+      "id": "banner_4",
+      "title": "🛡️ Защищенный интернет",
+      "subtitle": "10 000+ активных пользователей",
+      "text": "Подключение через Telegram-бот\n120 ₽/месяц • Проверенный профессионалами",
+      "cta": "Защитить данные",
+      "image_url": "https://pablovpn.com/assets/banner4.jpg", 
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "size": "300x600",
+      "priority": "medium",
+      "features": [
+        "🔒 Шифрование данных",
+        "⚡ Высокая скорость", 
+        "🌍 Доступ к сайтам",
+        "📱 Работает на всех устройствах",
+        "👥 10 000+ пользователей",
+        "💰 120 ₽/месяц"
+      ]
+    },
+    {
+      "id": "banner_5",
+      "title": "🎮 VPN для игр",
+      "subtitle": "10 000+ геймеров доверяют",
+      "text": "120 ₽/месяц • Рекомендован профессионалами\nОптимизировано для игр",
+      "cta": "Играть без лагов",
+      "image_url": "https://pablovpn.com/assets/banner5.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi", 
+      "size": "300x600",
+      "priority": "low",
+      "features": [
+        "🎯 Низкий пинг",
+        "⚡ Стабильная скорость",
+        "🛡️ DDoS защита",
+        "📱 Поддержка всех платформ",
+        "👥 10 000+ геймеров",
+        "💰 120 ₽/месяц"
+      ]
+    }
+  ],
+  "pricing": {
+    "base_cpc": 10.0,
+    "geo_modifiers": {
+      "Москва": 1.35,
+      "Санкт-Петербург": 1.25,
+      "Екатеринбург": 1.1,
+      "Новосибирск": 1.1,
+      "Казань": 1.05,
+      "Нижний Новгород": 1.05
+    },
+    "time_modifiers": {
+      "19:00-23:00": 1.4,
+      "09:00-18:00": 1.2,
+      "10:00-22:00_weekend": 1.1
+    },
+    "audience_modifiers": {
+      "tech_professionals": 1.5,
+      "travelers": 1.3,
+      "gamers": 1.2,
+      "general": 1.0
+    }
+  },
+  "audience_segments": {
+    "tech_professionals": {
+      "keywords": ["VPN для работы", "VPN для IT", "безопасный доступ", "VPN для программистов"],
+      "sites": ["habr.com", "vc.ru", "stackoverflow.com", "github.com"],
+      "bid_multiplier": 1.5,
+      "expected_cpa": 300
+    },
+    "travelers": {
+      "keywords": ["VPN для путешествий", "доступ к сайтам за границей", "VPN в поездке"],
+      "sites": ["aviasales.ru", "booking.com", "tripadvisor.ru", "skyscanner.ru"],
+      "bid_multiplier": 1.3,
+      "expected_cpa": 250
+    },
+    "gamers": {
+      "keywords": ["VPN для игр", "низкий пинг", "стабильное соединение", "VPN для геймеров"],
+      "sites": ["stopgame.ru", "igromania.ru", "playground.ru", "gameguru.ru"],
+      "bid_multiplier": 1.2,
+      "expected_cpa": 280
+    },
+    "privacy_conscious": {
+      "keywords": ["защита данных", "приватность в интернете", "безопасность VPN"],
+      "sites": ["wikipedia.org", "yandex.ru", "google.com"],
+      "bid_multiplier": 1.0,
+      "expected_cpa": 320
+    }
+  },
+  "exclusions": {
+    "negative_keywords": [
+      "скачать", "взлом", "пиратство", "торрент", "бесплатно",
+      "кряк", "активация", "лицензия", "настройка роутера",
+      "настройка сервера", "vpn сервер", "openvpn", "wireguard",
+      "бесплатный VPN", "скачать бесплатно", "взломать"
+    ],
+    "excluded_sites": [
+      "rutracker.org", "rutor.org", "nnmclub.to",
+      "softportal.com", "softpedia.com", "crackdb.com"
+    ]
+  },
+  "optimization": {
+    "auto_optimization": true,
+    "target_cpa": 250,
+    "target_roas": 600,
+    "min_impressions": 1000,
+    "min_clicks": 50,
+    "optimization_window": 7,
+    "conversion_triggers": {
+      "urgency": "Ограниченное количество мест",
+      "scarcity": "Специальная цена только для новых пользователей",
+      "social_proof": "10 000+ активных пользователей",
+      "authority": "Проверенный профессионалами"
+    }
+  },
+  "testing_plan": {
+    "a_b_tests": {
+      "usp_test": {
+        "variant_a": "10 000+ пользователей",
+        "variant_b": "120 руб/месяц",
+        "variant_c": "Проверенный профессионалами",
+        "duration": "14_days",
+        "metric": "conversion_rate"
+      },
+      "price_test": {
+        "variant_a": "120 руб/месяц",
+        "variant_b": "Всего 120 руб/месяц",
+        "variant_c": "120 ₽/месяц",
+        "duration": "21_days",
+        "metric": "ctr"
+      },
+      "cta_test": {
+        "variant_a": "Попробовать бесплатно",
+        "variant_b": "Подключиться",
+        "variant_c": "Начать пробный период",
+        "duration": "14_days",
+        "metric": "conversion_rate"
+      }
+    }
+  },
+  "performance_targets": {
+    "month_1": {
+      "impressions": "150,000",
+      "clicks": "3,000",
+      "ctr": "2%",
+      "conversions": "150",
+      "cpa": "300 руб",
+      "roas": "400%"
+    },
+    "month_3": {
+      "impressions": "300,000",
+      "clicks": "7,500",
+      "ctr": "2.5%",
+      "conversions": "450",
+      "cpa": "250 руб",
+      "roas": "600%"
+    },
+    "month_6": {
+      "impressions": "500,000",
+      "clicks": "15,000",
+      "ctr": "3%",
+      "conversions": "1,200",
+      "cpa": "200 руб",
+      "roas": "800%"
+    }
+  },
+  "reporting": {
+    "metrics": [
+      "impressions", "clicks", "ctr", "cpc", "conversions",
+      "conversion_rate", "cpa", "roas", "revenue"
+    ],
+    "dimensions": [
+      "date", "geo", "audience_segment", "banner", "site_category"
+    ],
+    "frequency": "daily"
+  }
+}

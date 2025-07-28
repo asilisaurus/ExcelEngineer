@@ -1,0 +1,271 @@
+{
+  "vpn_sales_analytics": {
+    "source": "Аналитика VPN рынка 2024",
+    "market_data": {
+      "total_vpn_market_size": "2.1 млрд руб (Россия)",
+      "growth_rate": "15% годовых",
+      "average_monthly_price": "180 руб",
+      "conversion_rate_industry": "3-8%",
+      "customer_lifetime_value": "1200-2400 руб"
+    },
+    "competitive_analysis": {
+      "top_competitors": {
+        "nordvpn": {
+          "price": "300-500 руб/мес",
+          "market_share": "25%",
+          "strengths": ["Бренд", "Маркетинг"],
+          "weaknesses": ["Высокая цена", "Сложная настройка"]
+        },
+        "expressvpn": {
+          "price": "400-600 руб/мес", 
+          "market_share": "20%",
+          "strengths": ["Скорость", "Качество"],
+          "weaknesses": ["Очень дорого", "Нет русского языка"]
+        },
+        "protonvpn": {
+          "price": "200-300 руб/мес",
+          "market_share": "15%",
+          "strengths": ["Безопасность", "Бесплатный план"],
+          "weaknesses": ["Ограниченная скорость", "Мало серверов"]
+        }
+      },
+      "price_positioning": {
+        "premium": "400-600 руб/мес (15% рынка)",
+        "mid_range": "200-400 руб/мес (60% рынка)", 
+        "budget": "100-200 руб/мес (25% рынка)"
+      }
+    },
+    "customer_segments_analysis": {
+      "primary_segments": {
+        "tech_professionals": {
+          "size": "35% рынка",
+          "avg_order_value": "240 руб/мес",
+          "conversion_rate": "8-12%",
+          "key_motivations": ["Безопасность", "Профессиональные нужды"],
+          "pain_points": ["Сложная настройка", "Высокая цена"]
+        },
+        "travelers": {
+          "size": "25% рынка", 
+          "avg_order_value": "180 руб/мес",
+          "conversion_rate": "6-10%",
+          "key_motivations": ["Доступ к сайтам", "Географические ограничения"],
+          "pain_points": ["Нестабильность", "Медленная скорость"]
+        },
+        "gamers": {
+          "size": "20% рынка",
+          "avg_order_value": "200 руб/мес", 
+          "conversion_rate": "5-8%",
+          "key_motivations": ["Низкий пинг", "Стабильность"],
+          "pain_points": ["Лаги", "Высокий пинг"]
+        },
+        "privacy_conscious": {
+          "size": "20% рынка",
+          "avg_order_value": "160 руб/мес",
+          "conversion_rate": "4-7%", 
+          "key_motivations": ["Анонимность", "Защита данных"],
+          "pain_points": ["Сомнения в безопасности", "Сложность"]
+        }
+      }
+    },
+    "conversion_funnel_analysis": {
+      "awareness": {
+        "sources": ["Поиск", "РСЯ", "Социальные сети"],
+        "conversion_rate": "100% (база)",
+        "cost_per_impression": "0.5-1.5 руб"
+      },
+      "interest": {
+        "triggers": ["Проблема", "Потребность", "Любопытство"],
+        "conversion_rate": "15-25%",
+        "cost_per_click": "8-20 руб"
+      },
+      "consideration": {
+        "factors": ["Цена", "Качество", "Простота", "Отзывы"],
+        "conversion_rate": "30-50%",
+        "time_to_decision": "1-7 дней"
+      },
+      "trial": {
+        "conversion_rate": "60-80%",
+        "trial_duration": "7 дней",
+        "activation_rate": "40-60%"
+      },
+      "purchase": {
+        "conversion_rate": "70-90%",
+        "avg_order_value": "120 руб/мес",
+        "payment_methods": ["Карта", "QIWI", "ЮMoney"]
+      },
+      "retention": {
+        "month_1_retention": "85-95%",
+        "month_3_retention": "70-85%",
+        "month_6_retention": "60-75%"
+      }
+    },
+    "performance_metrics_by_channel": {
+      "search_campaigns": {
+        "avg_cpc": "15-25 руб",
+        "conversion_rate": "8-15%",
+        "cpa": "200-400 руб",
+        "roas": "300-600%"
+      },
+      "rsya_campaigns": {
+        "avg_cpc": "8-15 руб", 
+        "conversion_rate": "5-12%",
+        "cpa": "150-300 руб",
+        "roas": "400-800%"
+      },
+      "social_media": {
+        "avg_cpc": "12-20 руб",
+        "conversion_rate": "3-8%", 
+        "cpa": "250-500 руб",
+        "roas": "200-400%"
+      }
+    }
+  },
+  "improved_strategy": {
+    "usp_enhancement": {
+      "primary_usp": "10 000+ активных пользователей",
+      "price_usp": "120 руб/месяц (на 40% дешевле конкурентов)",
+      "quality_usp": "Проверенный профессионалами",
+      "simplicity_usp": "Настройка за 30 секунд через Telegram",
+      "trust_usp": "Без логов • Без регистрации"
+    },
+    "targeting_improvements": {
+      "high_value_segments": {
+        "tech_professionals": {
+          "keywords": ["VPN для работы", "VPN для IT", "безопасный доступ"],
+          "sites": ["habr.com", "vc.ru", "stackoverflow.com"],
+          "bid_multiplier": 1.5,
+          "expected_cpa": 300
+        },
+        "travelers": {
+          "keywords": ["VPN для путешествий", "доступ к сайтам за границей"],
+          "sites": ["aviasales.ru", "booking.com", "tripadvisor.ru"],
+          "bid_multiplier": 1.3,
+          "expected_cpa": 250
+        },
+        "gamers": {
+          "keywords": ["VPN для игр", "низкий пинг", "стабильное соединение"],
+          "sites": ["stopgame.ru", "igromania.ru", "playground.ru"],
+          "bid_multiplier": 1.2,
+          "expected_cpa": 280
+        }
+      },
+      "negative_targeting": {
+        "exclude_keywords": [
+          "бесплатный VPN",
+          "взлом",
+          "пиратство", 
+          "торрент",
+          "скачать бесплатно",
+          "кряк",
+          "активация"
+        ],
+        "exclude_sites": [
+          "rutracker.org",
+          "rutor.org",
+          "nnmclub.to",
+          "softportal.com"
+        ]
+      }
+    },
+    "pricing_strategy": {
+      "competitive_advantage": {
+        "vs_nordvpn": "на 60% дешевле",
+        "vs_expressvpn": "на 70% дешевле", 
+        "vs_protonvpn": "на 40% дешевле"
+      },
+      "price_positioning": "Бюджетный сегмент с премиум качеством",
+      "value_proposition": "Качество премиум VPN за цену бюджетного"
+    },
+    "conversion_optimization": {
+      "funnel_improvements": {
+        "awareness": {
+          "tactics": ["РСЯ на информационных сайтах", "Поиск по проблемным запросам"],
+          "budget_allocation": "40%"
+        },
+        "interest": {
+          "tactics": ["Демонстрация УТП", "Социальные доказательства"],
+          "budget_allocation": "30%"
+        },
+        "consideration": {
+          "tactics": ["Сравнение с конкурентами", "Детальная информация"],
+          "budget_allocation": "20%"
+        },
+        "trial": {
+          "tactics": ["Простая регистрация", "Быстрая настройка"],
+          "budget_allocation": "10%"
+        }
+      },
+      "conversion_triggers": {
+        "urgency": "Ограниченное количество мест",
+        "scarcity": "Специальная цена только для новых пользователей",
+        "social_proof": "10 000+ активных пользователей",
+        "authority": "Проверенный профессионалами"
+      }
+    },
+    "budget_optimization": {
+      "daily_budget": 5000,
+      "budget_distribution": {
+        "high_intent_search": "30%",
+        "rsya_auto": "40%", 
+        "retargeting": "20%",
+        "testing": "10%"
+      },
+      "bid_strategy": {
+        "high_value_keywords": "15-25 руб",
+        "medium_value_keywords": "10-15 руб",
+        "low_value_keywords": "5-10 руб"
+      }
+    },
+    "performance_targets": {
+      "month_1": {
+        "impressions": "150,000",
+        "clicks": "3,000", 
+        "ctr": "2%",
+        "conversions": "150",
+        "cpa": "300 руб",
+        "roas": "400%"
+      },
+      "month_3": {
+        "impressions": "300,000",
+        "clicks": "7,500",
+        "ctr": "2.5%", 
+        "conversions": "450",
+        "cpa": "250 руб",
+        "roas": "600%"
+      },
+      "month_6": {
+        "impressions": "500,000",
+        "clicks": "15,000",
+        "ctr": "3%",
+        "conversions": "1,200", 
+        "cpa": "200 руб",
+        "roas": "800%"
+      }
+    },
+    "testing_plan": {
+      "a_b_tests": {
+        "usp_test": {
+          "variant_a": "10 000+ пользователей",
+          "variant_b": "120 руб/месяц",
+          "variant_c": "Проверенный профессионалами",
+          "duration": "14_days",
+          "metric": "conversion_rate"
+        },
+        "price_test": {
+          "variant_a": "120 руб/месяц",
+          "variant_b": "Всего 120 руб/месяц", 
+          "variant_c": "120 ₽/месяц",
+          "duration": "21_days",
+          "metric": "ctr"
+        },
+        "cta_test": {
+          "variant_a": "Попробовать бесплатно",
+          "variant_b": "Подключиться",
+          "variant_c": "Начать пробный период",
+          "duration": "14_days",
+          "metric": "conversion_rate"
+        }
+      }
+    }
+  }
+}

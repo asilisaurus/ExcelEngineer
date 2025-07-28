@@ -1,0 +1,406 @@
+{
+  "campaign_name": "VPN Pablo - ЕПК Авто",
+  "campaign_type": "EPK_AUTO",
+  "platform_settings": {
+    "platform": "EPK",
+    "auto_optimization": true,
+    "smart_bidding": true,
+    "cross_platform": true
+  },
+  "budget": {
+    "daily_budget": 5000,
+    "currency": "RUB",
+    "budget_distribution": {
+      "yandex_direct": "40%",
+      "google_ads": "30%",
+      "vk_ads": "20%",
+      "my_target": "10%"
+    },
+    "budget_optimization": {
+      "auto_distribution": true,
+      "performance_based": true,
+      "cross_platform_optimization": true
+    }
+  },
+  "targeting": {
+    "geo": {
+      "primary": ["Москва", "Санкт-Петербург"],
+      "secondary": ["Екатеринбург", "Новосибирск", "Казань", "Нижний Новгород"],
+      "bid_modifiers": {
+        "primary": 1.35,
+        "secondary": 1.1
+      }
+    },
+    "demographics": {
+      "age": ["18-24", "25-34", "35-44"],
+      "gender": ["male", "female"]
+    },
+    "interests": [
+      "Технологии и интернет",
+      "Безопасность в интернете", 
+      "Путешествия",
+      "Игры",
+      "Удаленная работа",
+      "IT и программирование",
+      "Кибербезопасность",
+      "Цифровая приватность"
+    ],
+    "behavioral_targeting": {
+      "tech_savvy": true,
+      "online_shopping": true,
+      "travel_planning": true,
+      "gaming": true,
+      "remote_work": true
+    }
+  },
+  "banners": [
+    {
+      "id": "banner_1",
+      "title": "🔒 VPN в один клик",
+      "subtitle": "10 000+ активных пользователей",
+      "text": "120 ₽/месяц • Проверенный профессионалами\nНастройка за 30 секунд через Telegram",
+      "cta": "Попробовать бесплатно",
+      "image_url": "https://pablovpn.com/assets/banner1.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "sizes": ["300x250", "728x90", "320x50"],
+      "priority": "high",
+      "usp_elements": [
+        "10 000+ пользователей",
+        "120 ₽/месяц",
+        "Проверенный профессионалами"
+      ],
+      "platform_optimization": {
+        "yandex": "primary",
+        "google": "primary",
+        "vk": "secondary",
+        "my_target": "secondary"
+      }
+    },
+    {
+      "id": "banner_2", 
+      "title": "⚡ Быстрый VPN",
+      "subtitle": "10 000+ довольных клиентов",
+      "text": "Всего 120 ₽/месяц • Рекомендован IT-специалистами\nСтабильная скорость без лагов",
+      "cta": "Подключиться",
+      "image_url": "https://pablovpn.com/assets/banner2.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "sizes": ["300x250", "728x90", "320x50"],
+      "priority": "high",
+      "usp_elements": [
+        "10 000+ клиентов",
+        "120 ₽/месяц",
+        "IT-специалисты рекомендуют"
+      ],
+      "platform_optimization": {
+        "yandex": "primary",
+        "google": "primary",
+        "vk": "secondary",
+        "my_target": "secondary"
+      }
+    },
+    {
+      "id": "banner_3",
+      "title": "🌍 VPN для путешествий", 
+      "subtitle": "10 000+ активных пользователей",
+      "text": "120 ₽/месяц • Проверенный профессионалами\nДоступ к сайтам из любой страны",
+      "cta": "Начать пробный период",
+      "image_url": "https://pablovpn.com/assets/banner3.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "sizes": ["300x250", "300x600", "728x90"],
+      "priority": "medium",
+      "usp_elements": [
+        "10 000+ пользователей",
+        "120 ₽/месяц",
+        "Проверенный профессионалами"
+      ],
+      "platform_optimization": {
+        "yandex": "primary",
+        "google": "primary",
+        "vk": "primary",
+        "my_target": "secondary"
+      }
+    },
+    {
+      "id": "banner_4",
+      "title": "🛡️ Защищенный интернет",
+      "subtitle": "10 000+ активных пользователей",
+      "text": "Подключение через Telegram-бот\n120 ₽/месяц • Проверенный профессионалами",
+      "cta": "Защитить данные",
+      "image_url": "https://pablovpn.com/assets/banner4.jpg", 
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi",
+      "sizes": ["300x600", "728x90"],
+      "priority": "medium",
+      "features": [
+        "🔒 Шифрование данных",
+        "⚡ Высокая скорость", 
+        "🌍 Доступ к сайтам",
+        "📱 Работает на всех устройствах",
+        "👥 10 000+ пользователей",
+        "💰 120 ₽/месяц"
+      ],
+      "platform_optimization": {
+        "yandex": "primary",
+        "google": "primary",
+        "vk": "secondary",
+        "my_target": "secondary"
+      }
+    },
+    {
+      "id": "banner_5",
+      "title": "🎮 VPN для игр",
+      "subtitle": "10 000+ геймеров доверяют",
+      "text": "120 ₽/месяц • Рекомендован профессионалами\nОптимизировано для игр",
+      "cta": "Играть без лагов",
+      "image_url": "https://pablovpn.com/assets/banner5.jpg",
+      "landing_url": "https://t.me/vpnpablo_bot?start=_tgr_ATVbSppmYzdi", 
+      "sizes": ["300x600", "728x90"],
+      "priority": "low",
+      "features": [
+        "🎯 Низкий пинг",
+        "⚡ Стабильная скорость",
+        "🛡️ DDoS защита",
+        "📱 Поддержка всех платформ",
+        "👥 10 000+ геймеров",
+        "💰 120 ₽/месяц"
+      ],
+      "platform_optimization": {
+        "yandex": "secondary",
+        "google": "secondary",
+        "vk": "primary",
+        "my_target": "primary"
+      }
+    }
+  ],
+  "pricing": {
+    "base_cpc": 10.0,
+    "platform_modifiers": {
+      "yandex_direct": {
+        "modifier": 1.0,
+        "avg_cpc": 10.0,
+        "conversion_rate": "8-12%"
+      },
+      "google_ads": {
+        "modifier": 1.2,
+        "avg_cpc": 12.0,
+        "conversion_rate": "6-10%"
+      },
+      "vk_ads": {
+        "modifier": 0.8,
+        "avg_cpc": 8.0,
+        "conversion_rate": "4-8%"
+      },
+      "my_target": {
+        "modifier": 0.9,
+        "avg_cpc": 9.0,
+        "conversion_rate": "5-9%"
+      }
+    },
+    "geo_modifiers": {
+      "Москва": 1.35,
+      "Санкт-Петербург": 1.25,
+      "Екатеринбург": 1.1,
+      "Новосибирск": 1.1,
+      "Казань": 1.05,
+      "Нижний Новгород": 1.05
+    },
+    "time_modifiers": {
+      "19:00-23:00": 1.4,
+      "09:00-18:00": 1.2,
+      "10:00-22:00_weekend": 1.1
+    },
+    "audience_modifiers": {
+      "tech_professionals": 1.5,
+      "travelers": 1.3,
+      "gamers": 1.2,
+      "general": 1.0
+    }
+  },
+  "audience_segments": {
+    "tech_professionals": {
+      "keywords": ["VPN для работы", "VPN для IT", "безопасный доступ", "VPN для программистов"],
+      "sites": ["habr.com", "vc.ru", "stackoverflow.com", "github.com"],
+      "platforms": ["yandex", "google"],
+      "bid_multiplier": 1.5,
+      "expected_cpa": 300
+    },
+    "travelers": {
+      "keywords": ["VPN для путешествий", "доступ к сайтам за границей", "VPN в поездке"],
+      "sites": ["aviasales.ru", "booking.com", "tripadvisor.ru", "skyscanner.ru"],
+      "platforms": ["yandex", "google", "vk"],
+      "bid_multiplier": 1.3,
+      "expected_cpa": 250
+    },
+    "gamers": {
+      "keywords": ["VPN для игр", "низкий пинг", "стабильное соединение", "VPN для геймеров"],
+      "sites": ["stopgame.ru", "igromania.ru", "playground.ru", "gameguru.ru"],
+      "platforms": ["vk", "my_target", "yandex"],
+      "bid_multiplier": 1.2,
+      "expected_cpa": 280
+    },
+    "privacy_conscious": {
+      "keywords": ["защита данных", "приватность в интернете", "безопасность VPN"],
+      "sites": ["wikipedia.org", "yandex.ru", "google.com"],
+      "platforms": ["yandex", "google"],
+      "bid_multiplier": 1.0,
+      "expected_cpa": 320
+    }
+  },
+  "exclusions": {
+    "negative_keywords": [
+      "скачать", "взлом", "пиратство", "торрент", "бесплатно",
+      "кряк", "активация", "лицензия", "настройка роутера",
+      "настройка сервера", "vpn сервер", "openvpn", "wireguard",
+      "бесплатный VPN", "скачать бесплатно", "взломать"
+    ],
+    "excluded_sites": [
+      "rutracker.org", "rutor.org", "nnmclub.to",
+      "softportal.com", "softpedia.com", "crackdb.com"
+    ],
+    "platform_specific_exclusions": {
+      "yandex": ["yandex.ru/collections"],
+      "google": ["google.com/search"],
+      "vk": ["vk.com/groups"],
+      "my_target": ["target.my.com"]
+    }
+  },
+  "optimization": {
+    "auto_optimization": true,
+    "smart_bidding": true,
+    "target_cpa": 250,
+    "target_roas": 600,
+    "min_impressions": 1000,
+    "min_clicks": 50,
+    "optimization_window": 7,
+    "cross_platform_optimization": true,
+    "conversion_triggers": {
+      "urgency": "Ограниченное количество мест",
+      "scarcity": "Специальная цена только для новых пользователей",
+      "social_proof": "10 000+ активных пользователей",
+      "authority": "Проверенный профессионалами"
+    },
+    "platform_optimization": {
+      "yandex": {
+        "priority": "high",
+        "bid_multiplier": 1.0,
+        "budget_share": "40%"
+      },
+      "google": {
+        "priority": "high", 
+        "bid_multiplier": 1.2,
+        "budget_share": "30%"
+      },
+      "vk": {
+        "priority": "medium",
+        "bid_multiplier": 0.8,
+        "budget_share": "20%"
+      },
+      "my_target": {
+        "priority": "medium",
+        "bid_multiplier": 0.9,
+        "budget_share": "10%"
+      }
+    }
+  },
+  "testing_plan": {
+    "cross_platform_tests": {
+      "usp_test": {
+        "variant_a": "10 000+ пользователей",
+        "variant_b": "120 руб/месяц",
+        "variant_c": "Проверенный профессионалами",
+        "duration": "14_days",
+        "metric": "conversion_rate",
+        "platforms": ["yandex", "google"]
+      },
+      "price_test": {
+        "variant_a": "120 руб/месяц",
+        "variant_b": "Всего 120 руб/месяц",
+        "variant_c": "120 ₽/месяц",
+        "duration": "21_days",
+        "metric": "ctr",
+        "platforms": ["all"]
+      },
+      "cta_test": {
+        "variant_a": "Попробовать бесплатно",
+        "variant_b": "Подключиться",
+        "variant_c": "Начать пробный период",
+        "duration": "14_days",
+        "metric": "conversion_rate",
+        "platforms": ["yandex", "google", "vk"]
+      }
+    },
+    "platform_specific_tests": {
+      "vk_gaming_test": {
+        "description": "Тест игровых баннеров в VK",
+        "duration": "7_days",
+        "metric": "engagement_rate"
+      },
+      "google_tech_test": {
+        "description": "Тест IT-баннеров в Google",
+        "duration": "7_days", 
+        "metric": "conversion_rate"
+      }
+    }
+  },
+  "performance_targets": {
+    "overall": {
+      "month_1": {
+        "impressions": "200,000",
+        "clicks": "4,000",
+        "ctr": "2%",
+        "conversions": "200",
+        "cpa": "250 руб",
+        "roas": "600%"
+      },
+      "month_3": {
+        "impressions": "400,000",
+        "clicks": "10,000",
+        "ctr": "2.5%",
+        "conversions": "600",
+        "cpa": "200 руб",
+        "roas": "800%"
+      },
+      "month_6": {
+        "impressions": "700,000",
+        "clicks": "21,000",
+        "ctr": "3%",
+        "conversions": "1,600",
+        "cpa": "180 руб",
+        "roas": "1000%"
+      }
+    },
+    "by_platform": {
+      "yandex": {
+        "ctr": "2.5-4%",
+        "conversion_rate": "8-12%",
+        "cpa": "200-300 руб"
+      },
+      "google": {
+        "ctr": "2-3%",
+        "conversion_rate": "6-10%",
+        "cpa": "250-350 руб"
+      },
+      "vk": {
+        "ctr": "1.5-2.5%",
+        "conversion_rate": "4-8%",
+        "cpa": "300-400 руб"
+      },
+      "my_target": {
+        "ctr": "1.8-3%",
+        "conversion_rate": "5-9%",
+        "cpa": "280-380 руб"
+      }
+    }
+  },
+  "reporting": {
+    "metrics": [
+      "impressions", "clicks", "ctr", "cpc", "conversions",
+      "conversion_rate", "cpa", "roas", "revenue"
+    ],
+    "dimensions": [
+      "date", "geo", "audience_segment", "banner", "platform",
+      "site_category", "device_type"
+    ],
+    "frequency": "daily",
+    "cross_platform_attribution": true
+  }
+}
